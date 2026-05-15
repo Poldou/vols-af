@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Vols AF">
+<meta name="theme-color" content="#1a56db">
+<title>Vols AF / Transavia</title>
+<style>
+:root {
+  --blue: #1a56db;
+  --blue-light: #dbeafe;
+  --blue-dark: #1e3a8a;
+  --amber: #d97706;
+  --amber-light: #fef3c7;
+  --bg: #f2f2f7;
+  --card: #ffffff;
+  --text: #1c1c1e;
+  --sub: #6b6b6b;
+  --border: rgba(0,0,0,0.12);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bot: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1c1e;
+    --card: #2c2c2e;
+    --text: #ffffff;
+    --sub: #ababab;
+    --border: rgba(255,255,255,0.12);
+    --blue-light: #1e3a8a;
+    --amber-light: #78350f;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+}
+.app { display: flex; flex-direction: column; height: 100%; }
+.screen { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+.screen.active { display: flex; }
+.header {
+  background: var(--card);
+  padding: calc(var(--safe-top) + 12px) 16px 12px;
+  border-bottom: 0.5px solid var(--border);
+  flex-shrink: 0;
+}
+.header-title { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
+.header-sub { font-size: 14px; color: var(--sub); margin-top: 2px; }
+.header-back {
+  display: flex; align-items: center; gap: 4px;
+  color: var(--blue); font-size: 17px; background: none; border: none;
+  padding: 0; cursor: pointer; font-family: inherit; margin-bottom: 4px;
+}
+.header-back svg { width: 10px; height: 17px; }
+.header-back-title { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; color: var(--text); margin-top: 4px; }
+.scroll-body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 16px 16px 24px; }
+.section-label {
+  font-size: 13px; font-weight: 600; color: var(--sub);
+  text-transform: uppercase; letter-spacing: 0.04em;
+  margin: 20px 0 8px;
+}
+.section-label:first-child { margin-top: 0; }
+.seg {
+  display: flex; background: rgba(118,118,128,0.12);
+  border-radius: 10px; padding: 2px; gap: 2px; margin-bottom: 4px;
+}
+.seg-btn {
+  flex: 1; padding: 7px 4px; border: none; background: transparent;
+  font-size: 14px; font-weight: 500; color: var(--sub);
+  border-radius: 8px; cursor: pointer; font-family: inherit;
+  transition: background 0.15s;
+}
+.seg-btn.on {
+  background: var(--card); color: var(--text);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+.field-group {
+  background: var(--card); border-radius: 12px;
+  overflow: hidden; margin-bottom: 4px;
+}
+.field {
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 16px; border-bottom: 0.5px solid var(--border);
+}
+.field:last-child { border-bottom: none; }
+.field-icon { font-size: 20px; width: 24px; text-align: center; flex-shrink: 0; }
+.field-inner { flex: 1; min-width: 0; }
+.field-label { font-size: 12px; color: var(--sub); margin-bottom: 2px; }
+.field select, .field input[type=time] {
+  width: 100%; border: none; background: transparent;
+  font-size: 16px; color: var(--text); font-family: inherit;
+  outline: none; -webkit-appearance: auto; appearance: auto;
+}
+.field-row { display: grid; grid-template-columns: 1fr 1fr; }
+.field-row .field { border-right: 0.5px solid var(--border); }
+.field-row .field:last-child { border-right: none; }
+.search-btn {
+  width: 100%; margin-top: 24px; padding: 16px;
+  background: var(--blue); border: none; border-radius: 14px;
+  font-size: 17px; font-weight: 600; color: #fff;
+  cursor: pointer; font-family: inherit;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.search-btn:active { opacity: 0.8; transform: scale(0.98); }
+.pills-row {
+  display: flex; gap: 7px; overflow-x: auto; padding: 10px 16px;
+  -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  border-bottom: 0.5px solid var(--border);
+  background: var(--card); flex-shrink: 0;
+}
+.pills-row::-webkit-scrollbar { display: none; }
+.pill {
+  flex-shrink: 0; padding: 6px 14px; border-radius: 20px;
+  background: rgba(118,118,128,0.12); font-size: 13px;
+  font-weight: 500; color: var(--sub); cursor: pointer; white-space: nowrap;
+  border: none; font-family: inherit;
+}
+.pill.on { background: var(--blue); color: #fff; }
+.pill.on-to { background: var(--amber); color: #fff; }
+.results-info {
+  font-size: 13px; color: var(--sub);
+  padding: 10px 16px 0; flex-shrink: 0;
+}
+.fcard {
+  background: var(--card); border-radius: 14px;
+  padding: 14px 16px; margin-bottom: 10px;
+  border-left: 4px solid #ccc;
+}
+.fcard.af { border-left-color: var(--blue); }
+.fcard.to { border-left-color: var(--amber); }
+.fcard-dest { font-size: 17px; font-weight: 600; margin-bottom: 2px; }
+.fcard-meta { font-size: 12px; color: var(--sub); margin-bottom: 7px; }
+.fcard-badges { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 12px; }
+.badge { display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+.b-af { background: var(--blue-light); color: #1e3a8a; }
+.b-to { background: var(--amber-light); color: #78350f; }
+.b-eur { background: #ede9fe; color: #4c1d95; }
+.b-med { background: #dbeafe; color: #1e3a8a; }
+.b-am  { background: #dbeafe; color: #1e3a8a; }
+.b-as  { background: #d1fae5; color: #064e3b; }
+.b-afr { background: #fef3c7; color: #78350f; }
+.b-dom { background: #fee2e2; color: #7f1d1d; }
+@media (prefers-color-scheme: dark) {
+  .b-af  { background: #1e3a8a; color: #bfdbfe; }
+  .b-to  { background: #78350f; color: #fde68a; }
+  .b-eur { background: #3b0764; color: #e9d5ff; }
+  .b-med { background: #1e3a8a; color: #bfdbfe; }
+  .b-am  { background: #1e3a8a; color: #bfdbfe; }
+  .b-as  { background: #064e3b; color: #a7f3d0; }
+  .b-afr { background: #78350f; color: #fde68a; }
+  .b-dom { background: #7f1d1d; color: #fecaca; }
+}
+.fcard-times { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.tblock { text-align: center; }
+.tval { font-size: 26px; font-weight: 700; line-height: 1; letter-spacing: -0.5px; }
+.tlbl { font-size: 11px; color: var(--sub); margin-top: 3px; }
+.tarrow { color: var(--sub); font-size: 18px; }
+.tdur { text-align: center; }
+.tdur strong { display: block; font-size: 18px; font-weight: 700; }
+.tdur span { font-size: 11px; color: var(--sub); }
+.sb-link {
+  display: flex; align-items: center; justify-content: center;
+  padding: 9px 14px; border-radius: 10px;
+  background: rgba(118,118,128,0.12); font-size: 14px;
+  font-weight: 600; color: var(--blue); text-decoration: none;
+  gap: 5px; margin-top: 12px;
+}
+.sb-link:active { opacity: 0.7; }
+.no-res { text-align: center; padding: 60px 20px; color: var(--sub); font-size: 15px; line-height: 1.5; }
+.no-res-icon { font-size: 48px; margin-bottom: 12px; }
+.tab-bar {
+  display: flex; background: var(--card);
+  border-top: 0.5px solid var(--border);
+  padding-bottom: var(--safe-bot);
+  flex-shrink: 0;
+}
+.tab {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; gap: 3px; padding: 10px 4px 6px;
+  border: none; background: none; cursor: pointer; font-family: inherit;
+}
+.tab-icon { font-size: 24px; color: var(--sub); }
+.tab-label { font-size: 10px; font-weight: 500; color: var(--sub); }
+.tab.on .tab-icon, .tab.on .tab-label { color: var(--blue); }
+.install-banner {
+  background: var(--blue); color: #fff;
+  padding: 10px 16px; font-size: 13px; line-height: 1.4;
+  text-align: center; flex-shrink: 0;
+}
+.install-banner strong { display: block; font-size: 14px; margin-bottom: 2px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="install-banner" id="install-banner">
+    <strong>📲 Installer l'app</strong>
+    Safari → <strong>Partager</strong> → <strong>Sur l'écran d'accueil</strong>
+  </div>
+
+  <div class="screen active" id="s-search">
+    <div class="header">
+      <div class="header-title">✈️ Vols AF</div>
+      <div class="header-sub">Air France & Transavia</div>
+    </div>
+    <div class="scroll-body">
+      <div class="section-label">Mode de départ</div>
+      <div class="seg">
+        <button class="seg-btn on" id="mode-single" onclick="setMode('single')">Départ fixe</button>
+        <button class="seg-btn" id="mode-multi" onclick="setMode('multi')">Toutes bases</button>
+      </div>
+      <div id="dep-section">
+        <div class="section-label">Aéroport de départ</div>
+        <div class="field-group">
+          <div class="field">
+            <div class="field-icon">📍</div>
+            <div class="field-inner">
+              <div class="field-label">Départ depuis</div>
+              <select id="dep">
+                <option value="CDG">Paris CDG</option>
+                <option value="ORY">Paris Orly</option>
+                <option value="NCE">Nice NCE</option>
+                <option value="MRS">Marseille MRS</option>
+                <option value="LYS">Lyon LYS</option>
+                <option value="NTE">Nantes NTE</option>
+                <option value="BOD">Bordeaux BOD</option>
+                <option value="TLS">Toulouse TLS</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="section-label">Horaires</div>
+      <div class="field-group">
+        <div class="field">
+          <div class="field-icon">🛫</div>
+          <div class="field-inner">
+            <div class="field-label">Heure de départ</div>
+            <input type="time" id="depTime">
+          </div>
+        </div>
+        <div class="field-row field-group" style="margin-bottom:0;border-radius:0">
+          <div class="field">
+            <div class="field-icon">🕐</div>
+            <div class="field-inner">
+              <div class="field-label">Arrivée de</div>
+              <input type="time" id="arrFrom" value="06:00">
+            </div>
+          </div>
+          <div class="field">
+            <div class="field-icon">🕐</div>
+            <div class="field-inner">
+              <div class="field-label">jusqu'à</div>
+              <input type="time" id="arrTo" value="12:00">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="section-label">Appareil</div>
+      <div class="field-group">
+        <div class="field">
+          <div class="field-icon">✈️</div>
+          <div class="field-inner">
+            <div class="field-label">Type d'avion</div>
+            <select id="aircraft">
+              <option value="all">Tous les appareils</option>
+              <option value="B77W">Boeing 777</option>
+              <option value="A359">Airbus A350</option>
+              <option value="B789">Boeing 787</option>
+              <option value="B738">Boeing 737-800</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <button class="search-btn" onclick="doSearch()">🔍 Rechercher les destinations</button>
+    </div>
+  </div>
+
+  <div class="screen" id="s-results">
+    <div class="header">
+      <button class="header-back" onclick="showScreen('search')">
+        <svg viewBox="0 0 10 17" fill="none"><path d="M8.5 1.5L1.5 8.5L8.5 15.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Retour
+      </button>
+      <div class="header-back-title" id="rh-title">Résultats</div>
+      <div class="header-sub" id="rh-sub"></div>
+    </div>
+    <div class="pills-row" id="airline-pills">
+      <button class="pill on" data-v="all" onclick="setPill(this,'airline')">Toutes</button>
+      <button class="pill" data-v="AF" onclick="setPill(this,'airline')">Air France</button>
+      <button class="pill" data-v="TO" onclick="setPill(this,'airline')">Transavia</button>
+    </div>
+    <div class="pills-row" id="region-pills">
+      <button class="pill on" data-v="all" onclick="setPill(this,'region')">Toutes régions</button>
+      <button class="pill" data-v="europe" onclick="setPill(this,'region')">Europe</button>
+      <button class="pill" data-v="mediterranee" onclick="setPill(this,'region')">Méditerranée</button>
+      <button class="pill" data-v="ameriques" onclick="setPill(this,'region')">Amériques</button>
+      <button class="pill" data-v="asie" onclick="setPill(this,'region')">Asie</button>
+      <button class="pill" data-v="afrique" onclick="setPill(this,'region')">Afrique</button>
+      <button class="pill" data-v="dom" onclick="setPill(this,'region')">DOM-TOM</button>
+    </div>
+    <div class="results-info" id="results-info"></div>
+    <div class="scroll-body" style="padding-top:12px" id="results-body"></div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab on" id="tab-search" onclick="showScreen('search')">
+      <span class="tab-icon">🔍</span>
+      <span class="tab-label">Recherche</span>
+    </button>
+    <button class="tab" id="tab-results" onclick="showScreen('results')">
+      <span class="tab-icon">📋</span>
+      <span class="tab-label">Résultats</span>
+    </button>
+  </div>
+</div>
+
+<script>
+if (window.navigator.standalone) {
+  document.getElementById('install-banner').style.display = 'none';
+}
+const ALL_DEPS=["CDG","ORY","NCE","MRS","LYS","NTE","BOD","TLS"];
+const DEP_LABELS={CDG:"Paris CDG",ORY:"Paris Orly",NCE:"Nice",MRS:"Marseille",LYS:"Lyon",NTE:"Nantes",BOD:"Bordeaux",TLS:"Toulouse"};
+const AC_LABELS={B77W:"777",A359:"A350",B789:"787",B738:"737-800"};
+const RLABEL={all:"Toutes",europe:"Europe",mediterranee:"Méditerranée",ameriques:"Amériques",asie:"Asie",afrique:"Afrique",dom:"DOM-TOM"};
+const RBADGE={europe:"b-eur",mediterranee:"b-med",ameriques:"b-am",asie:"b-as",afrique:"b-afr",dom:"b-dom"};
+const ROUTES=[
+  {dest:"New York JFK",code:"JFK",flight:"AF006",dur:480,ac:"B77W",al:"AF",reg:"ameriques",bases:["CDG"]},
+  {dest:"Los Angeles",code:"LAX",flight:"AF066",dur:660,ac:"B77W",al:"AF",reg:"ameriques",bases:["CDG"]},
+  {dest:"San Francisco",code:"SFO",flight:"AF076",dur:660,ac:"B77W",al:"AF",reg:"ameriques",bases:["CDG"]},
+  {dest:"Montréal",code:"YUL",flight:"AF342",dur:465,ac:"B77W",al:"AF",reg:"ameriques",bases:["CDG"]},
+  {dest:"Mexico City",code:"MEX",flight:"AF178",dur:650,ac:"B77W",al:"AF",reg:"ameriques",bases:["CDG"]},
+  {dest:"Buenos Aires",code:"EZE",flight:"AF220",dur:835,ac:"A359",al:"AF",reg:"ameriques",bases:["CDG"]},
+  {dest:"Santiago",code:"SCL",flight:"AF406",dur:870,ac:"A359",al:"AF",reg:"ameriques",bases:["CDG"]},
+  {dest:"Bogotá",code:"BOG",flight:"AF450",dur:620,ac:"B789",al:"AF",reg:"ameriques",bases:["CDG"]},
+  {dest:"São Paulo",code:"GRU",flight:"AF446",dur:720,ac:"B77W",al:"AF",reg:"ameriques",bases:["CDG"]},
+  {dest:"Tokyo Haneda",code:"HND",flight:"AF272",dur:890,ac:"A359",al:"AF",reg:"asie",bases:["CDG"]},
+  {dest:"Osaka Kansai",code:"KIX",flight:"AF268",dur:895,ac:"B789",al:"AF",reg:"asie",bases:["CDG"]},
+  {dest:"Séoul Incheon",code:"ICN",flight:"AF264",dur:860,ac:"A359",al:"AF",reg:"asie",bases:["CDG"]},
+  {dest:"Shanghai Pudong",code:"PVG",flight:"AF116",dur:885,ac:"B77W",al:"AF",reg:"asie",bases:["CDG"]},
+  {dest:"Hong Kong",code:"HKG",flight:"AF180",dur:845,ac:"A359",al:"AF",reg:"asie",bases:["CDG"]},
+  {dest:"Singapore",code:"SIN",flight:"AF258",dur:855,ac:"B77W",al:"AF",reg:"asie",bases:["CDG"]},
+  {dest:"Bangkok",code:"BKK",flight:"AF160",dur:715,ac:"A359",al:"AF",reg:"asie",bases:["CDG"]},
+  {dest:"Delhi",code:"DEL",flight:"AF142",dur:555,ac:"A359",al:"AF",reg:"asie",bases:["CDG"]},
+  {dest:"Mumbai",code:"BOM",flight:"AF218",dur:575,ac:"A359",al:"AF",reg:"asie",bases:["CDG"]},
+  {dest:"Johannesburg",code:"JNB",flight:"AF990",dur:695,ac:"B77W",al:"AF",reg:"afrique",bases:["CDG"]},
+  {dest:"Nairobi",code:"NBO",flight:"AF160",dur:530,ac:"B789",al:"AF",reg:"afrique",bases:["CDG"]},
+  {dest:"Dakar",code:"DKR",flight:"AF718",dur:395,ac:"A359",al:"AF",reg:"afrique",bases:["CDG"]},
+  {dest:"Abidjan",code:"ABJ",flight:"AF702",dur:430,ac:"A359",al:"AF",reg:"afrique",bases:["CDG"]},
+  {dest:"Douala",code:"DLA",flight:"AF902",dur:465,ac:"B789",al:"AF",reg:"afrique",bases:["CDG"]},
+  {dest:"Libreville",code:"LBV",flight:"AF908",dur:475,ac:"B789",al:"AF",reg:"afrique",bases:["CDG"]},
+  {dest:"Antananarivo",code:"TNR",flight:"AF960",dur:630,ac:"B789",al:"AF",reg:"afrique",bases:["CDG"]},
+  {dest:"La Réunion",code:"RUN",flight:"AF942",dur:665,ac:"B77W",al:"AF",reg:"dom",bases:["CDG"]},
+  {dest:"Martinique",code:"FDF",flight:"AF340",dur:510,ac:"B77W",al:"AF",reg:"dom",bases:["CDG"]},
+  {dest:"Guadeloupe",code:"PTP",flight:"AF116",dur:520,ac:"B77W",al:"AF",reg:"dom",bases:["CDG"]},
+  {dest:"Cayenne",code:"CAY",flight:"AF350",dur:575,ac:"B789",al:"AF",reg:"dom",bases:["CDG"]},
+  {dest:"Papeete",code:"PPT",flight:"AF084",dur:1095,ac:"B77W",al:"AF",reg:"dom",bases:["CDG"]},
+  {dest:"Nouméa",code:"NOU",flight:"AF274",dur:1050,ac:"B77W",al:"AF",reg:"dom",bases:["CDG"]},
+  {dest:"Dubaï",code:"DXB",flight:"AF546",dur:390,ac:"A359",al:"AF",reg:"mediterranee",bases:["CDG"]},
+  {dest:"Tel Aviv",code:"TLV",flight:"AF562",dur:285,ac:"A359",al:"AF",reg:"mediterranee",bases:["CDG"]},
+  {dest:"Londres Heathrow",code:"LHR",flight:"AF182",dur:80,ac:"B738",al:"AF",reg:"europe",bases:["CDG"]},
+  {dest:"Amsterdam",code:"AMS",flight:"AF1240",dur:75,ac:"B738",al:"AF",reg:"europe",bases:["CDG"]},
+  {dest:"Francfort",code:"FRA",flight:"AF1120",dur:85,ac:"B738",al:"AF",reg:"europe",bases:["CDG"]},
+  {dest:"Madrid",code:"MAD",flight:"AF1300",dur:130,ac:"B738",al:"AF",reg:"europe",bases:["CDG"]},
+  {dest:"Barcelone",code:"BCN",flight:"AF1640",dur:115,ac:"B738",al:"AF",reg:"europe",bases:["CDG"]},
+  {dest:"Rome FCO",code:"FCO",flight:"AF1200",dur:140,ac:"B738",al:"AF",reg:"europe",bases:["CDG"]},
+  {dest:"Milan Malpensa",code:"MXP",flight:"AF1380",dur:110,ac:"B738",al:"AF",reg:"europe",bases:["CDG"]},
+  {dest:"Zurich",code:"ZRH",flight:"AF1580",dur:90,ac:"B738",al:"AF",reg:"europe",bases:["CDG"]},
+  {dest:"Copenhague",code:"CPH",flight:"AF1428",dur:135,ac:"B738",al:"AF",reg:"europe",bases:["CDG"]},
+  {dest:"Stockholm",code:"ARN",flight:"AF1470",dur:165,ac:"B738",al:"AF",reg:"europe",bases:["CDG"]},
+  {dest:"Oslo",code:"OSL",flight:"AF1454",dur:150,ac:"B738",al:"AF",reg:"europe",bases:["CDG"]},
+  {dest:"Helsinki",code:"HEL",flight:"AF1490",dur:195,ac:"B738",al:"AF",reg:"europe",bases:["CDG"]},
+  {dest:"Varsovie",code:"WAW",flight:"AF1260",dur:175,ac:"B738",al:"AF",reg:"europe",bases:["CDG"]},
+  {dest:"Vienne",code:"VIE",flight:"AF1046",dur:145,ac:"B738",al:"AF",reg:"europe",bases:["CDG"]},
+  {dest:"Prague",code:"PRG",flight:"AF1084",dur:155,ac:"B738",al:"AF",reg:"europe",bases:["CDG"]},
+  {dest:"Bruxelles",code:"BRU",flight:"AF1830",dur:60,ac:"B738",al:"AF",reg:"europe",bases:["CDG"]},
+  {dest:"Lisbonne",code:"LIS",flight:"AF1160",dur:145,ac:"B738",al:"AF",reg:"europe",bases:["CDG"]},
+  {dest:"Porto",code:"OPO",flight:"AF1764",dur:140,ac:"B738",al:"AF",reg:"europe",bases:["CDG"]},
+  {dest:"Athènes",code:"ATH",flight:"AF630",dur:215,ac:"B738",al:"AF",reg:"mediterranee",bases:["CDG"]},
+  {dest:"Le Caire",code:"CAI",flight:"AF504",dur:270,ac:"B738",al:"AF",reg:"mediterranee",bases:["CDG"]},
+  {dest:"Tunis",code:"TUN",flight:"AF802",dur:155,ac:"B738",al:"AF",reg:"mediterranee",bases:["CDG"]},
+  {dest:"Alger",code:"ALG",flight:"AF816",dur:140,ac:"B738",al:"AF",reg:"afrique",bases:["CDG"]},
+  {dest:"Casablanca",code:"CMN",flight:"AF752",dur:160,ac:"B738",al:"AF",reg:"afrique",bases:["CDG"]},
+  {dest:"Agadir",code:"AGA",flight:"TO3500",dur:195,ac:"B738",al:"TO",reg:"mediterranee",bases:["ORY","NCE","MRS","LYS","NTE","BOD","TLS"]},
+  {dest:"Marrakech",code:"RAK",flight:"TO3540",dur:190,ac:"B738",al:"TO",reg:"mediterranee",bases:["ORY","NCE","MRS","LYS","NTE","BOD","TLS"]},
+  {dest:"Fès",code:"FEZ",flight:"TO3520",dur:185,ac:"B738",al:"TO",reg:"mediterranee",bases:["ORY","NCE","MRS","LYS"]},
+  {dest:"Oujda",code:"OUD",flight:"TO3560",dur:180,ac:"B738",al:"TO",reg:"mediterranee",bases:["ORY","NCE","MRS","LYS","NTE"]},
+  {dest:"Djerba",code:"DJE",flight:"TO3620",dur:175,ac:"B738",al:"TO",reg:"mediterranee",bases:["ORY","NCE","MRS","LYS","NTE","BOD","TLS"]},
+  {dest:"Monastir",code:"MIR",flight:"TO3640",dur:170,ac:"B738",al:"TO",reg:"mediterranee",bases:["ORY","MRS","LYS"]},
+  {dest:"Tunis",code:"TUN",flight:"TO3600",dur:160,ac:"B738",al:"TO",reg:"mediterranee",bases:["ORY","NCE","MRS","LYS","NTE","BOD","TLS"]},
+  {dest:"Enfidha",code:"NBE",flight:"TO3660",dur:165,ac:"B738",al:"TO",reg:"mediterranee",bases:["ORY","MRS","LYS","NTE","BOD"]},
+  {dest:"Alger",code:"ALG",flight:"TO3700",dur:145,ac:"B738",al:"TO",reg:"afrique",bases:["ORY","NCE","MRS","LYS","NTE","BOD","TLS"]},
+  {dest:"Oran",code:"ORN",flight:"TO3720",dur:155,ac:"B738",al:"TO",reg:"afrique",bases:["ORY","NCE","MRS","LYS","NTE","BOD","TLS"]},
+  {dest:"Constantine",code:"CZL",flight:"TO3740",dur:160,ac:"B738",al:"TO",reg:"afrique",bases:["ORY","NCE","MRS","LYS","NTE","BOD","TLS"]},
+  {dest:"Annaba",code:"AAE",flight:"TO3760",dur:165,ac:"B738",al:"TO",reg:"afrique",bases:["ORY","NCE","MRS","LYS","NTE"]},
+  {dest:"Tlemcen",code:"TLM",flight:"TO3780",dur:150,ac:"B738",al:"TO",reg:"afrique",bases:["ORY","MRS","LYS","NTE","BOD"]},
+  {dest:"Setif",code:"QSF",flight:"TO3790",dur:155,ac:"B738",al:"TO",reg:"afrique",bases:["ORY","NCE","MRS","LYS"]},
+  {dest:"Barcelone",code:"BCN",flight:"TO5000",dur:110,ac:"B738",al:"TO",reg:"europe",bases:["ORY","MRS","LYS","NTE","BOD","TLS"]},
+  {dest:"Malaga",code:"AGP",flight:"TO5020",dur:155,ac:"B738",al:"TO",reg:"europe",bases:["ORY","NCE","MRS","LYS","NTE","BOD","TLS"]},
+  {dest:"Alicante",code:"ALC",flight:"TO5040",dur:140,ac:"B738",al:"TO",reg:"europe",bases:["ORY","NCE","MRS","LYS","NTE","BOD","TLS"]},
+  {dest:"Séville",code:"SVQ",flight:"TO5060",dur:155,ac:"B738",al:"TO",reg:"europe",bases:["ORY","NCE","LYS","NTE","BOD","TLS"]},
+  {dest:"Valence",code:"VLC",flight:"TO5080",dur:130,ac:"B738",al:"TO",reg:"europe",bases:["ORY","MRS","LYS","NTE","BOD","TLS"]},
+  {dest:"Palma de Majorque",code:"PMI",flight:"TO5100",dur:125,ac:"B738",al:"TO",reg:"europe",bases:["ORY","NCE","MRS","LYS","NTE","BOD","TLS"]},
+  {dest:"Ibiza",code:"IBZ",flight:"TO5120",dur:130,ac:"B738",al:"TO",reg:"europe",bases:["ORY","NCE","MRS","LYS","NTE","BOD","TLS"]},
+  {dest:"Porto",code:"OPO",flight:"TO5200",dur:140,ac:"B738",al:"TO",reg:"europe",bases:["ORY","NCE","MRS","LYS","NTE","BOD","TLS"]},
+  {dest:"Lisbonne",code:"LIS",flight:"TO5220",dur:150,ac:"B738",al:"TO",reg:"europe",bases:["ORY","NCE","MRS","LYS","NTE","BOD","TLS"]},
+  {dest:"Faro",code:"FAO",flight:"TO5240",dur:160,ac:"B738",al:"TO",reg:"europe",bases:["ORY","MRS","LYS","NTE","BOD","TLS"]},
+  {dest:"Lanzarote",code:"ACE",flight:"TO5300",dur:210,ac:"B738",al:"TO",reg:"europe",bases:["ORY","NCE","MRS","LYS","NTE","BOD","TLS"]},
+  {dest:"Fuerteventura",code:"FUE",flight:"TO5320",dur:220,ac:"B738",al:"TO",reg:"europe",bases:["ORY","NCE","MRS","LYS","NTE","BOD","TLS"]},
+  {dest:"Tenerife Sud",code:"TFS",flight:"TO5340",dur:230,ac:"B738",al:"TO",reg:"europe",bases:["ORY","NCE","MRS","LYS","NTE","BOD","TLS"]},
+  {dest:"Gran Canaria",code:"LPA",flight:"TO5360",dur:225,ac:"B738",al:"TO",reg:"europe",bases:["ORY","NCE","MRS","LYS","NTE","BOD","TLS"]},
+  {dest:"Naples",code:"NAP",flight:"TO6000",dur:145,ac:"B738",al:"TO",reg:"europe",bases:["ORY","NCE","MRS","LYS","NTE","BOD","TLS"]},
+  {dest:"Rome FCO",code:"FCO",flight:"TO6020",dur:140,ac:"B738",al:"TO",reg:"europe",bases:["ORY","NCE","MRS","LYS","NTE","BOD","TLS"]},
+  {dest:"Venise",code:"VCE",flight:"TO6040",dur:120,ac:"B738",al:"TO",reg:"europe",bases:["ORY","MRS","LYS","NTE","BOD","TLS"]},
+  {dest:"Catane",code:"CTA",flight:"TO6060",dur:165,ac:"B738",al:"TO",reg:"europe",bases:["ORY","NCE","MRS","LYS","NTE","BOD"]},
+  {dest:"Palerme",code:"PMO",flight:"TO6080",dur:160,ac:"B738",al:"TO",reg:"europe",bases:["ORY","NCE","MRS","LYS","NTE","BOD"]},
+  {dest:"Héraklion",code:"HER",flight:"TO6500",dur:230,ac:"B738",al:"TO",reg:"mediterranee",bases:["ORY","NCE","MRS","LYS","NTE","BOD","TLS"]},
+  {dest:"Rhodes",code:"RHO",flight:"TO6520",dur:240,ac:"B738",al:"TO",reg:"mediterranee",bases:["ORY","NCE","MRS","LYS","NTE","BOD","TLS"]},
+  {dest:"Santorin",code:"JTR",flight:"TO6540",dur:235,ac:"B738",al:"TO",reg:"mediterranee",bases:["ORY","NCE","MRS","LYS"]},
+  {dest:"Kos",code:"KGS",flight:"TO6560",dur:235,ac:"B738",al:"TO",reg:"mediterranee",bases:["ORY","NCE","MRS","LYS","NTE"]},
+  {dest:"Corfou",code:"CFU",flight:"TO6580",dur:195,ac:"B738",al:"TO",reg:"mediterranee",bases:["ORY","NCE","MRS","LYS","NTE","BOD"]},
+  {dest:"Bodrum",code:"BJV",flight:"TO6600",dur:235,ac:"B738",al:"TO",reg:"mediterranee",bases:["ORY","NCE","MRS","LYS","NTE"]},
+  {dest:"Antalya",code:"AYT",flight:"TO6620",dur:250,ac:"B738",al:"TO",reg:"mediterranee",bases:["ORY","NCE","MRS","LYS","NTE","BOD","TLS"]},
+  {dest:"Izmir",code:"ADB",flight:"TO6640",dur:225,ac:"B738",al:"TO",reg:"mediterranee",bases:["ORY","NCE","MRS","LYS"]},
+  {dest:"Hurghada",code:"HRG",flight:"TO6700",dur:275,ac:"B738",al:"TO",reg:"mediterranee",bases:["ORY","NCE","MRS","LYS","NTE","BOD"]},
+  {dest:"Sharm el-Sheikh",code:"SSH",flight:"TO6720",dur:285,ac:"B738",al:"TO",reg:"mediterranee",bases:["ORY","NCE","MRS","LYS","NTE"]},
+];
+let curMode='single',fAirline='all',fRegion='all',lastResults=[];
+function nextHour(){const n=new Date(),h=n.getMinutes()===0?n.getHours():n.getHours()+1;return String(h%24).padStart(2,'0')+':00';}
+function pt(s){const[h,m]=s.split(':').map(Number);return h*60+m;}
+function am(b,m){return(b+m)%(24*60);}
+function ft(t){return String(Math.floor(t/60)%24).padStart(2,'0')+':'+String(t%60).padStart(2,'0');}
+function fd(m){return Math.floor(m/60)+'h'+(m%60?String(m%60).padStart(2,'0'):'');}
+function inW(a,f,t){return f<=t?a>=f&&a<=t:a>=f||a<=t;}
+function setMode(m){curMode=m;document.getElementById('mode-single').className='seg-btn'+(m==='single'?' on':'');document.getElementById('mode-multi').className='seg-btn'+(m==='multi'?' on':'');document.getElementById('dep-section').style.display=m==='single'?'':'none';}
+function setPill(el,group){const c=group==='airline'?'airline-pills':'region-pills';document.querySelectorAll('#'+c+' .pill').forEach(p=>p.className='pill');const v=el.dataset.v;if(group==='airline'){fAirline=v;el.className='pill '+(v==='TO'?'on-to':'on');}else{fRegion=v;el.className='pill on';}renderResults();}
+function doSearch(){
+  const depMin=pt(document.getElementById('depTime').value);
+  const arrFrom=pt(document.getElementById('arrFrom').value);
+  const arrTo=pt(document.getElementById('arrTo').value);
+  const ac=document.getElementById('aircraft').value;
+  const dep=document.getElementById('dep').value;
+  fAirline='all';fRegion='all';
+  document.querySelectorAll('#airline-pills .pill,#region-pills .pill').forEach(p=>{p.className='pill';if(p.dataset.v==='all')p.className='pill on';});
+  let results=[];
+  if(curMode==='single'){ROUTES.forEach(r=>{if(!r.bases.includes(dep))return;if(ac!=='all'&&r.ac!==ac)return;const arr=am(depMin,r.dur);if(!inW(arr,arrFrom,arrTo))return;results.push({...r,dep,arr,depMin});});}
+  else{const seen=new Set();ALL_DEPS.forEach(d=>{ROUTES.forEach(r=>{if(!r.bases.includes(d))return;if(ac!=='all'&&r.ac!==ac)return;const arr=am(depMin,r.dur);if(!inW(arr,arrFrom,arrTo))return;const k=d+'|'+r.code;if(seen.has(k))return;seen.add(k);results.push({...r,dep:d,arr,depMin});});});}
+  results.sort((a,b)=>a.dur-b.dur);lastResults=results;
+  document.getElementById('rh-title').textContent=curMode==='multi'?'Toutes bases':DEP_LABELS[dep];
+  document.getElementById('rh-sub').textContent=`Départ ${ft(depMin)} · arrivée ${ft(arrFrom)}–${ft(arrTo)}`;
+  renderResults();showScreen('results');
+}
+function renderResults(){
+  const info=document.getElementById('results-info');
+  const body=document.getElementById('results-body');
+  const r=lastResults.filter(x=>{if(fAirline!=='all'&&x.al!==fAirline)return false;if(fRegion!=='all'&&x.reg!==fRegion)return false;return true;});
+  info.textContent=r.length?`${r.length} destination${r.length>1?'s':''} trouvée${r.length>1?'s':''}`:' ';
+  if(!r.length){body.innerHTML='<div class="no-res"><div class="no-res-icon">🛬</div>Aucun vol pour ces filtres.</div>';return;}
+  body.innerHTML=r.map(x=>{
+    const depLabel=curMode==='multi'?`<strong>${DEP_LABELS[x.dep]}</strong> · `:'';
+    const sb=`https://www.simbrief.com/system/dispatch.php?orig=${x.dep}&dest=${x.code}`;
+    return`<div class="fcard ${x.al.toLowerCase()}"><div class="fcard-dest">${x.dest}</div><div class="fcard-meta">${depLabel}${x.dep} → ${x.code} · ${x.flight} · ${AC_LABELS[x.ac]||x.ac}</div><div class="fcard-badges"><span class="badge ${x.al==='TO'?'b-to':'b-af'}">${x.al==='AF'?'Air France':'Transavia'}</span><span class="badge ${RBADGE[x.reg]}">${RLABEL[x.reg]}</span></div><div class="fcard-times"><div class="tblock"><div class="tval">${ft(x.depMin)}</div><div class="tlbl">départ</div></div><div class="tarrow">→</div><div class="tblock"><div class="tval">${ft(x.arr)}</div><div class="tlbl">arrivée</div></div><div class="tarrow" style="border-left:1px solid var(--border);height:36px"></div><div class="tdur"><strong>${fd(x.dur)}</strong><span>de vol</span></div></div><a href="${sb}" target="_blank" class="sb-link">Ouvrir dans Simbrief ↗</a></div>`;
+  }).join('');
+}
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById('s-'+id).classList.add('active');document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));document.getElementById('tab-'+id).classList.add('on');}
+document.getElementById('depTime').value=nextHour();
+</script>
+</body>
+</html>
