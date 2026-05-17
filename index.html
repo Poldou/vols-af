@@ -264,7 +264,7 @@ html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMa
 <script>
 // ── CONFIG ──
 // Remplace par ton URL raw GitHub après avoir poussé routes.json
-const ROUTES_URL = 'https://raw.githubusercontent.com/Poldou/vols-af/main/routes.json';
+const ROUTES_URL = 'https://raw.githubusercontent.com/TONUSER/vols-af/main/routes.json';
 
 // ── STATE ──
 let ROUTES = [];
@@ -370,9 +370,9 @@ function doSearch() {
     ROUTES.forEach(r => {
       if (r.dep !== d) return;
       if (co !== 'all' && r.co !== co) return;
-      const arr = addM(depMin, r.dur);
-      if (!inW(arr, arrFrom, arrTo)) return;
-      results.push({ ...r, depMin, arr });
+      const arrMin = addM(depMin, r.dur);
+      if (!inW(arrMin, arrFrom, arrTo)) return;
+      results.push({ ...r, depMin, arrMin });
     });
   });
 
@@ -435,7 +435,7 @@ function renderResults() {
       <div class="fcard-times">
         <div class="tblock"><div class="tval">${ft(x.depMin)}</div><div class="tlbl">départ</div></div>
         <div class="tarrow">──────→</div>
-        <div class="tblock"><div class="tval">${ft(x.arr)}</div><div class="tlbl">arrivée</div></div>
+        <div class="tblock"><div class="tval">${ft(x.arrMin)}</div><div class="tlbl">arrivée</div></div>
         <div class="tdur"><strong>${fd(x.dur)}</strong><span>de vol</span></div>
       </div>
       <a href="${sb}" target="_blank" class="sb-link">Ouvrir dans Simbrief ↗</a>
