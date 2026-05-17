@@ -418,14 +418,14 @@ function renderResults() {
   const coClass = { LH:'lh', MH:'mh', SH:'sh' };
 
   body.innerHTML = r.map(x => {
-    const depLabel = curMode === 'multi' ? `<strong>${x.dep}</strong> → ` : '';
+    const route = curMode === 'multi' ? `<strong>${x.dep}</strong> → <strong>${x.arr}</strong>` : `${x.dep} → ${x.arr}`;
     const sb = `https://www.simbrief.com/system/dispatch.php?orig=${x.dep}&dest=${x.arr}`;
     const regLabel = REG_LABELS[x.reg] || x.reg;
     const regBadge = REG_BADGE[x.reg] || 'b-reg';
     return `
     <div class="fcard ${coClass[x.co]||''}">
       <div class="fcard-top">
-        <div class="fcard-dest">${depLabel}${x.dep} → ${x.arr}</div>
+        <div class="fcard-dest">${route}</div>
         <div class="fcard-num">${x.num} · ${x.cs} · ${x.ac}</div>
         <div class="fcard-badges">
           <span class="badge ${CO_BADGE[x.co]||'b-lh'}">${CO_LABELS[x.co]||x.co}</span>
