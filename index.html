@@ -224,7 +224,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
-const ROUTES_URL = 'https://raw.githubusercontent.com/Poldou/vols-af/main/routes.json';
+const ROUTES_URL = 'https://raw.githubusercontent.com/poldou/vols-af/main/routes.json';
 
 const COORDS = {
   ABJ:[5.261,-3.926],ABV:[9.006,7.263],AGP:[36.675,-4.499],AJA:[41.923,8.802],
@@ -336,6 +336,12 @@ function updateArrWindows(t){
 }
 document.getElementById('depTime').addEventListener('change',function(){updateArrWindows(this.value);});
 document.getElementById('depTime').addEventListener('input',function(){updateArrWindows(this.value);});
+document.getElementById('arrFrom').addEventListener('change',function(){
+  document.getElementById('arrTo').value=ft(addM(pt(this.value),60));
+});
+document.getElementById('arrFrom').addEventListener('input',function(){
+  document.getElementById('arrTo').value=ft(addM(pt(this.value),60));
+});
 
 function setMode(m){
   curMode=m;
