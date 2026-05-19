@@ -8,129 +8,100 @@
 <meta name="apple-mobile-web-app-title" content="Vols AF">
 <meta name="theme-color" content="#1a56db">
 <title>Vols AF</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <style>
 :root {
-  --blue: #1a56db;
-  --blue-light: #dbeafe;
-  --green: #16a34a;
-  --green-light: #dcfce7;
-  --bg: #f2f2f7;
-  --card: #ffffff;
-  --text: #1c1c1e;
-  --sub: #6b6b6b;
-  --border: rgba(0,0,0,0.1);
-  --safe-top: env(safe-area-inset-top, 0px);
-  --safe-bot: env(safe-area-inset-bottom, 0px);
+  --blue:#1a56db; --blue-light:#dbeafe;
+  --green:#16a34a; --green-light:#dcfce7;
+  --bg:#f2f2f7; --card:#ffffff; --text:#1c1c1e; --sub:#6b6b6b;
+  --border:rgba(0,0,0,0.1);
+  --safe-top:env(safe-area-inset-top,0px); --safe-bot:env(safe-area-inset-bottom,0px);
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1c1c1e; --card: #2c2c2e; --text: #ffffff;
-    --sub: #ababab; --border: rgba(255,255,255,0.1);
-    --blue-light: #1e3a8a; --green-light: #14532d;
-  }
+@media(prefers-color-scheme:dark){
+  :root{--bg:#1c1c1e;--card:#2c2c2e;--text:#fff;--sub:#ababab;--border:rgba(255,255,255,0.1);--blue-light:#1e3a8a;--green-light:#14532d;}
 }
-* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); }
-.app { display: flex; flex-direction: column; height: 100%; }
-.screen { display: none; flex-direction: column; flex: 1; overflow: hidden; }
-.screen.active { display: flex; }
-
-/* HEADER */
-.header { background: var(--card); padding: calc(var(--safe-top) + 14px) 16px 12px; border-bottom: 0.5px solid var(--border); flex-shrink: 0; }
-.header-title { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
-.header-sub { font-size: 14px; color: var(--sub); margin-top: 2px; }
-.header-back { display: flex; align-items: center; gap: 4px; color: var(--blue); font-size: 17px; background: none; border: none; padding: 0; cursor: pointer; font-family: inherit; margin-bottom: 6px; }
-.header-back svg { width: 10px; height: 17px; }
-
-/* SCROLL */
-.scroll-body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 16px 16px 24px; }
-
-/* LOADING */
-.loading { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; gap: 12px; color: var(--sub); font-size: 15px; }
-.spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.8s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* FORM */
-.section-label { font-size: 12px; font-weight: 600; color: var(--sub); text-transform: uppercase; letter-spacing: 0.05em; margin: 18px 0 8px; }
-.section-label:first-child { margin-top: 0; }
-.seg { display: flex; background: rgba(118,118,128,0.12); border-radius: 10px; padding: 2px; gap: 2px; margin-bottom: 4px; }
-.seg-btn { flex: 1; padding: 8px 4px; border: none; background: transparent; font-size: 14px; font-weight: 500; color: var(--sub); border-radius: 8px; cursor: pointer; font-family: inherit; }
-.seg-btn.on { background: var(--card); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
-.field-group { background: var(--card); border-radius: 12px; overflow: hidden; }
-.field { display: flex; align-items: center; gap: 12px; padding: 13px 16px; border-bottom: 0.5px solid var(--border); }
-.field:last-child { border-bottom: none; }
-.field-icon { font-size: 20px; width: 26px; text-align: center; flex-shrink: 0; }
-.field-inner { flex: 1; min-width: 0; }
-.field-label { font-size: 11px; color: var(--sub); margin-bottom: 2px; font-weight: 500; }
-.field select, .field input[type=time] { width: 100%; border: none; background: transparent; font-size: 16px; color: var(--text); font-family: inherit; outline: none; -webkit-appearance: auto; }
-.field-row { display: grid; grid-template-columns: 1fr 1fr; }
-.field-row .field { border-right: 0.5px solid var(--border); }
-.field-row .field:last-child { border-right: none; }
-.search-btn { width: 100%; margin-top: 24px; padding: 16px; background: var(--blue); border: none; border-radius: 14px; font-size: 17px; font-weight: 600; color: #fff; cursor: pointer; font-family: inherit; display: flex; align-items: center; justify-content: center; gap: 8px; }
-.search-btn:active { opacity: 0.85; transform: scale(0.98); }
-.search-btn:disabled { opacity: 0.5; }
-
-/* DATA INFO */
-.data-badge { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; background: var(--green-light); border-radius: 8px; font-size: 12px; color: var(--green); font-weight: 600; margin-top: 16px; }
-
-/* PILLS */
-.pills-row { display: flex; gap: 6px; overflow-x: auto; padding: 10px 16px; -webkit-overflow-scrolling: touch; scrollbar-width: none; border-bottom: 0.5px solid var(--border); background: var(--card); flex-shrink: 0; }
-.pills-row::-webkit-scrollbar { display: none; }
-.pill { flex-shrink: 0; padding: 6px 13px; border-radius: 20px; background: rgba(118,118,128,0.12); font-size: 13px; font-weight: 500; color: var(--sub); cursor: pointer; white-space: nowrap; border: none; font-family: inherit; }
-.pill.on { background: var(--blue); color: #fff; }
-.pill.on-lh { background: #7c3aed; color: #fff; }
-.pill.on-mh { background: #0891b2; color: #fff; }
-.pill.on-sh { background: #059669; color: #fff; }
-.results-info { font-size: 13px; color: var(--sub); padding: 10px 16px 0; flex-shrink: 0; }
-
-/* FLIGHT CARDS */
-.fcard { background: var(--card); border-radius: 14px; padding: 14px 16px; margin-bottom: 10px; border-left: 4px solid var(--blue); }
-.fcard.mh { border-left-color: #0891b2; }
-.fcard.sh { border-left-color: #059669; }
-.fcard-top { margin-bottom: 10px; }
-.fcard-dest { font-size: 17px; font-weight: 700; }
-.fcard-num { font-size: 13px; color: var(--sub); margin-top: 2px; }
-.fcard-badges { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
-.badge { display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
-.b-lh { background: #ede9fe; color: #5b21b6; }
-.b-mh { background: #cffafe; color: #164e63; }
-.b-sh { background: #d1fae5; color: #064e3b; }
-.b-reg { background: var(--blue-light); color: #1e3a8a; }
-.b-dom { background: #fee2e2; color: #7f1d1d; }
-.b-afr { background: #fef3c7; color: #78350f; }
-.b-asi { background: #d1fae5; color: #064e3b; }
-.b-eur { background: #ede9fe; color: #4c1d95; }
-.b-fr  { background: #f0f9ff; color: #0c4a6e; }
-.b-me  { background: #fdf4ff; color: #6b21a8; }
-@media (prefers-color-scheme: dark) {
-  .b-lh { background: #4c1d95; color: #e9d5ff; }
-  .b-mh { background: #164e63; color: #cffafe; }
-  .b-sh { background: #064e3b; color: #d1fae5; }
-  .b-reg { background: #1e3a8a; color: #bfdbfe; }
-  .b-dom { background: #7f1d1d; color: #fecaca; }
-  .b-afr { background: #78350f; color: #fde68a; }
-  .b-asi { background: #064e3b; color: #a7f3d0; }
-  .b-eur { background: #3b0764; color: #e9d5ff; }
-  .b-fr  { background: #0c4a6e; color: #e0f2fe; }
-  .b-me  { background: #4a044e; color: #f0abfc; }
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--text);}
+.app{display:flex;flex-direction:column;height:100%;}
+.screen{display:none;flex-direction:column;flex:1;overflow:hidden;}
+.screen.active{display:flex;}
+.header{background:var(--card);padding:calc(var(--safe-top) + 14px) 16px 12px;border-bottom:0.5px solid var(--border);flex-shrink:0;}
+.header-title{font-size:28px;font-weight:700;letter-spacing:-0.5px;}
+.header-sub{font-size:14px;color:var(--sub);margin-top:2px;}
+.header-back{display:flex;align-items:center;gap:4px;color:var(--blue);font-size:17px;background:none;border:none;padding:0;cursor:pointer;font-family:inherit;margin-bottom:6px;}
+.header-back svg{width:10px;height:17px;}
+.scroll-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 16px 24px;}
+.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:12px;color:var(--sub);font-size:15px;}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.section-label{font-size:12px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:0.05em;margin:18px 0 8px;}
+.section-label:first-child{margin-top:0;}
+.seg{display:flex;background:rgba(118,118,128,0.12);border-radius:10px;padding:2px;gap:2px;margin-bottom:4px;}
+.seg-btn{flex:1;padding:8px 4px;border:none;background:transparent;font-size:14px;font-weight:500;color:var(--sub);border-radius:8px;cursor:pointer;font-family:inherit;}
+.seg-btn.on{background:var(--card);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,0.15);}
+.field-group{background:var(--card);border-radius:12px;overflow:hidden;}
+.field{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:0.5px solid var(--border);}
+.field:last-child{border-bottom:none;}
+.field-icon{font-size:20px;width:26px;text-align:center;flex-shrink:0;}
+.field-inner{flex:1;min-width:0;}
+.field-label{font-size:11px;color:var(--sub);margin-bottom:2px;font-weight:500;}
+.field select,.field input[type=time]{width:100%;border:none;background:transparent;font-size:16px;color:var(--text);font-family:inherit;outline:none;-webkit-appearance:auto;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;}
+.field-row .field{border-right:0.5px solid var(--border);}
+.field-row .field:last-child{border-right:none;}
+.search-btn{width:100%;margin-top:24px;padding:16px;background:var(--blue);border:none;border-radius:14px;font-size:17px;font-weight:600;color:#fff;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;}
+.search-btn:active{opacity:0.85;transform:scale(0.98);}
+.data-badge{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;background:var(--green-light);border-radius:8px;font-size:12px;color:var(--green);font-weight:600;margin-top:16px;}
+.pills-row{display:flex;gap:6px;overflow-x:auto;padding:10px 16px;-webkit-overflow-scrolling:touch;scrollbar-width:none;border-bottom:0.5px solid var(--border);background:var(--card);flex-shrink:0;}
+.pills-row::-webkit-scrollbar{display:none;}
+.pill{flex-shrink:0;padding:6px 13px;border-radius:20px;background:rgba(118,118,128,0.12);font-size:13px;font-weight:500;color:var(--sub);cursor:pointer;white-space:nowrap;border:none;font-family:inherit;}
+.pill.on{background:var(--blue);color:#fff;}
+.pill.on-lh{background:#7c3aed;color:#fff;}
+.pill.on-mh{background:#0891b2;color:#fff;}
+.pill.on-sh{background:#059669;color:#fff;}
+.results-info{font-size:13px;color:var(--sub);padding:8px 16px 0;flex-shrink:0;}
+.view-toggle{display:flex;margin:8px 16px 0;background:rgba(118,118,128,0.12);border-radius:10px;padding:2px;gap:2px;flex-shrink:0;}
+.vtab{flex:1;padding:7px;border:none;background:transparent;font-size:13px;font-weight:500;color:var(--sub);border-radius:8px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:5px;}
+.vtab.on{background:var(--card);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,0.12);}
+.fcard{background:var(--card);border-radius:14px;padding:14px 16px;margin-bottom:10px;border-left:4px solid var(--blue);}
+.fcard.mh{border-left-color:#0891b2;}
+.fcard.sh{border-left-color:#059669;}
+.fcard-dest{font-size:17px;font-weight:700;}
+.fcard-num{font-size:13px;color:var(--sub);margin-top:2px;}
+.fcard-badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px;margin-bottom:10px;}
+.badge{display:inline-block;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;}
+.b-lh{background:#ede9fe;color:#5b21b6;} .b-mh{background:#cffafe;color:#164e63;} .b-sh{background:#d1fae5;color:#064e3b;}
+.b-reg{background:var(--blue-light);color:#1e3a8a;} .b-dom{background:#fee2e2;color:#7f1d1d;}
+.b-afr{background:#fef3c7;color:#78350f;} .b-asi{background:#d1fae5;color:#064e3b;}
+.b-eur{background:#ede9fe;color:#4c1d95;} .b-fr{background:#f0f9ff;color:#0c4a6e;} .b-me{background:#fdf4ff;color:#6b21a8;}
+@media(prefers-color-scheme:dark){
+  .b-lh{background:#4c1d95;color:#e9d5ff;} .b-mh{background:#164e63;color:#cffafe;} .b-sh{background:#064e3b;color:#d1fae5;}
+  .b-reg{background:#1e3a8a;color:#bfdbfe;} .b-dom{background:#7f1d1d;color:#fecaca;} .b-afr{background:#78350f;color:#fde68a;}
+  .b-asi{background:#064e3b;color:#a7f3d0;} .b-eur{background:#3b0764;color:#e9d5ff;} .b-fr{background:#0c4a6e;color:#e0f2fe;} .b-me{background:#4a044e;color:#f0abfc;}
 }
-.fcard-times { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-.tblock { text-align: center; }
-.tval { font-size: 26px; font-weight: 700; line-height: 1; letter-spacing: -0.5px; }
-.tlbl { font-size: 10px; color: var(--sub); margin-top: 2px; }
-.tarrow { color: var(--sub); font-size: 14px; flex: 1; text-align: center; }
-.tdur { text-align: center; border-left: 1px solid var(--border); padding-left: 12px; }
-.tdur strong { display: block; font-size: 17px; font-weight: 700; }
-.tdur span { font-size: 10px; color: var(--sub); }
-.sb-link { display: flex; align-items: center; justify-content: center; padding: 9px; border-radius: 10px; background: rgba(118,118,128,0.1); font-size: 14px; font-weight: 600; color: var(--blue); text-decoration: none; }
-.no-res { text-align: center; padding: 50px 20px; color: var(--sub); font-size: 15px; line-height: 1.6; }
-
-/* TAB BAR */
-.tab-bar { display: flex; background: var(--card); border-top: 0.5px solid var(--border); padding-bottom: var(--safe-bot); flex-shrink: 0; }
-.tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 4px 6px; border: none; background: none; cursor: pointer; font-family: inherit; }
-.tab-icon { font-size: 22px; color: var(--sub); }
-.tab-label { font-size: 10px; font-weight: 500; color: var(--sub); }
-.tab.on .tab-icon, .tab.on .tab-label { color: var(--blue); }
+.fcard-times{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+.tblock{text-align:center;}
+.tval{font-size:26px;font-weight:700;line-height:1;letter-spacing:-0.5px;}
+.tlbl{font-size:10px;color:var(--sub);margin-top:2px;}
+.tarrow{color:var(--sub);font-size:14px;flex:1;text-align:center;}
+.tdur{text-align:center;border-left:1px solid var(--border);padding-left:12px;}
+.tdur strong{display:block;font-size:17px;font-weight:700;}
+.tdur span{font-size:10px;color:var(--sub);}
+.sb-link{display:flex;align-items:center;justify-content:center;padding:9px;border-radius:10px;background:rgba(118,118,128,0.1);font-size:14px;font-weight:600;color:var(--blue);text-decoration:none;}
+.no-res{text-align:center;padding:50px 20px;color:var(--sub);font-size:15px;line-height:1.6;}
+#map-view{flex:1;display:none;}
+#map-view.active{display:block;}
+#leaflet-map{width:100%;height:100%;}
+.leaflet-popup-content-wrapper{border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.2);}
+.map-popup{font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:13px;min-width:150px;}
+.map-popup strong{font-size:15px;font-weight:700;display:block;margin-bottom:4px;}
+.map-popup .pop-info{color:#666;font-size:12px;line-height:1.6;}
+.map-popup .pop-sb{display:block;margin-top:8px;padding:6px 10px;background:#1a56db;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;text-align:center;font-size:13px;}
+.tab-bar{display:flex;background:var(--card);border-top:0.5px solid var(--border);padding-bottom:var(--safe-bot);flex-shrink:0;}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 4px 6px;border:none;background:none;cursor:pointer;font-family:inherit;}
+.tab-icon{font-size:22px;color:var(--sub);}
+.tab-label{font-size:10px;font-weight:500;color:var(--sub);}
+.tab.on .tab-icon,.tab.on .tab-label{color:var(--blue);}
 </style>
 </head>
 <body>
@@ -142,19 +113,16 @@ html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMa
       <div class="header-title">✈️ Vols AF</div>
       <div class="header-sub">Programme Air France</div>
     </div>
-    <div class="scroll-body" id="search-body">
+    <div class="scroll-body">
       <div class="loading" id="loading-state">
-        <div class="spinner"></div>
-        Chargement du programme…
+        <div class="spinner"></div>Chargement du programme…
       </div>
       <div id="search-form" style="display:none">
-
         <div class="section-label">Mode de départ</div>
         <div class="seg">
           <button class="seg-btn on" id="mode-single" onclick="setMode('single')">Départ fixe</button>
           <button class="seg-btn" id="mode-multi" onclick="setMode('multi')">Toutes bases</button>
         </div>
-
         <div id="dep-section">
           <div class="section-label">Aéroport de départ</div>
           <div class="field-group">
@@ -167,7 +135,6 @@ html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMa
             </div>
           </div>
         </div>
-
         <div class="section-label">Horaires</div>
         <div class="field-group">
           <div class="field">
@@ -180,21 +147,14 @@ html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMa
           <div class="field-row">
             <div class="field">
               <div class="field-icon">🕐</div>
-              <div class="field-inner">
-                <div class="field-label">Arrivée de</div>
-                <input type="time" id="arrFrom">
-              </div>
+              <div class="field-inner"><div class="field-label">Arrivée de</div><input type="time" id="arrFrom"></div>
             </div>
             <div class="field">
               <div class="field-icon">🕑</div>
-              <div class="field-inner">
-                <div class="field-label">jusqu'à</div>
-                <input type="time" id="arrTo">
-              </div>
+              <div class="field-inner"><div class="field-label">jusqu'à</div><input type="time" id="arrTo"></div>
             </div>
           </div>
         </div>
-
         <div class="section-label">Type de vol</div>
         <div class="field-group">
           <div class="field">
@@ -210,10 +170,8 @@ html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMa
             </div>
           </div>
         </div>
-
-        <button class="search-btn" onclick="doSearch()" id="search-btn">🔍 Rechercher</button>
-
-        <div class="data-badge" id="data-badge">✅ 0 vols chargés</div>
+        <button class="search-btn" onclick="doSearch()">🔍 Rechercher</button>
+        <div class="data-badge" id="data-badge">✅ 0 routes chargées</div>
       </div>
     </div>
   </div>
@@ -244,193 +202,209 @@ html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMa
       <button class="pill" data-v="france" onclick="setPill(this,'reg')">France</button>
       <button class="pill" data-v="moyen-orient" onclick="setPill(this,'reg')">M-Orient</button>
     </div>
+    <div class="view-toggle">
+      <button class="vtab on" id="vtab-list" onclick="setView('list')">📋 Liste</button>
+      <button class="vtab" id="vtab-map" onclick="setView('map')">🗺️ Carte</button>
+    </div>
     <div class="results-info" id="results-info"></div>
     <div class="scroll-body" style="padding-top:10px" id="results-body"></div>
+    <div id="map-view"><div id="leaflet-map"></div></div>
   </div>
 
   <!-- TAB BAR -->
   <div class="tab-bar">
     <button class="tab on" id="tab-search" onclick="showScreen('search')">
-      <span class="tab-icon">🔍</span>
-      <span class="tab-label">Recherche</span>
+      <span class="tab-icon">🔍</span><span class="tab-label">Recherche</span>
     </button>
     <button class="tab" id="tab-results" onclick="showScreen('results')">
-      <span class="tab-icon">📋</span>
-      <span class="tab-label">Résultats</span>
+      <span class="tab-icon">📋</span><span class="tab-label">Résultats</span>
     </button>
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
-// ── CONFIG ──
-// Remplace par ton URL raw GitHub après avoir poussé routes.json
 const ROUTES_URL = 'https://raw.githubusercontent.com/Poldou/vols-af/main/routes.json';
 
-// ── STATE ──
-let ROUTES = [];
-let lastResults = [];
-let fCo = 'all', fReg = 'all';
-let curMode = 'single';
-let depOptions = [];
+const COORDS = {
+  ABJ:[5.261,-3.926],ABV:[9.006,7.263],AGP:[36.675,-4.499],AJA:[41.923,8.802],
+  ALG:[36.691,3.215],AMS:[52.308,4.764],ARN:[59.651,17.919],ATH:[37.936,23.944],
+  ATL:[33.641,-84.427],BCN:[41.297,2.078],BEL:[52.891,0.955],BER:[52.366,13.503],
+  BES:[48.448,-4.418],BEY:[33.821,35.488],BGO:[60.294,5.218],BHX:[52.453,-1.748],
+  BIA:[42.553,9.484],BIQ:[43.469,-1.523],BKK:[13.681,100.747],BLQ:[44.535,11.289],
+  BLR:[13.199,77.706],BOD:[44.828,-0.715],BOG:[4.702,-74.147],BOM:[19.089,72.868],
+  BOS:[42.365,-71.010],BRI:[41.138,16.760],BUD:[47.436,19.261],BZV:[-4.251,15.253],
+  CAG:[39.251,9.054],CAI:[30.122,31.406],CAY:[4.819,-52.361],CDG:[49.013,2.550],
+  CKY:[9.577,-13.612],CLY:[42.527,2.873],CMN:[33.368,-7.590],COO:[6.357,2.384],
+  CPH:[55.618,12.656],CPT:[-33.965,18.602],CUN:[21.041,-86.874],DBV:[42.561,18.268],
+  DEL:[28.556,77.101],DEN:[39.861,-104.673],DFW:[32.897,-97.038],DLA:[4.006,9.720],
+  DSS:[14.670,-17.073],DTW:[42.212,-83.353],DUB:[53.421,-6.270],DXB:[25.252,55.364],
+  EDI:[55.950,-3.373],EVN:[40.147,44.396],EWR:[40.693,-74.168],EZE:[-34.822,-58.536],
+  FAO:[37.014,-7.966],FCO:[41.800,12.239],FDF:[14.591,-61.003],FIH:[-4.386,15.445],
+  FLR:[43.810,11.205],FOR:[-3.776,-38.532],FSC:[41.501,9.098],GIG:[-22.810,-43.251],
+  GRU:[-23.432,-46.469],GVA:[46.238,6.109],HAM:[53.630,9.991],HEL:[60.317,24.963],
+  HER:[35.340,25.181],HKG:[22.308,113.915],HKT:[8.112,98.317],HND:[35.549,139.780],
+  IAD:[38.944,-77.456],IAH:[29.984,-95.341],IBZ:[38.873,1.373],ICN:[37.460,126.441],
+  IST:[41.275,28.752],JFK:[40.640,-73.779],JIB:[11.547,43.159],JMK:[37.436,25.348],
+  JNB:[-26.134,28.242],JRO:[-3.429,37.074],JTR:[36.399,25.479],KIX:[34.427,135.244],
+  LAS:[36.080,-115.152],LAX:[33.943,-118.408],LBV:[0.459,9.412],LFW:[6.166,1.255],
+  LGW:[51.157,-0.182],LHR:[51.477,-0.461],LIM:[-12.022,-77.114],LIN:[45.445,9.277],
+  LIS:[38.774,-9.134],LOS:[6.577,3.321],LYS:[45.726,5.090],MAD:[40.472,-3.561],
+  MAN:[53.354,-2.275],MCO:[28.429,-81.309],MEX:[19.436,-99.072],MIA:[25.796,-80.287],
+  MLA:[35.857,14.477],MNL:[14.509,121.020],MPL:[43.576,3.963],MRS:[43.439,5.221],
+  MRU:[-20.430,57.684],MSP:[44.882,-93.222],MUC:[48.354,11.786],MXP:[45.630,8.723],
+  NAP:[40.884,14.291],NBJ:[36.722,3.215],NBO:[-1.319,36.928],NCE:[43.658,7.215],
+  NDJ:[12.134,15.034],NKC:[18.098,-15.948],NSI:[3.722,11.553],NTE:[47.157,-1.611],
+  OLB:[40.899,9.518],OPO:[41.248,-8.681],ORD:[41.974,-87.907],ORN:[35.624,-0.622],
+  ORY:[48.723,2.379],OSL:[60.194,11.100],OTP:[44.572,26.102],PEK:[40.080,116.585],
+  PHX:[33.438,-112.008],PMI:[39.551,2.739],PMO:[38.176,13.091],PNR:[-4.160,11.887],
+  PPT:[-17.553,-149.607],PRG:[50.100,14.260],PTP:[16.265,-61.528],PTY:[9.071,-79.383],
+  PUJ:[18.567,-68.364],PVG:[31.143,121.805],RAK:[31.607,-8.036],RBA:[33.989,-6.752],
+  RDU:[35.877,-78.787],RHO:[36.405,28.086],RUH:[24.958,46.699],RUN:[-20.887,55.511],
+  SCL:[-33.393,-70.786],SEA:[47.449,-122.309],SFO:[37.619,-122.375],SGN:[10.819,106.652],
+  SIN:[1.350,103.994],SJO:[9.994,-84.209],SSA:[-12.911,-38.331],SSG:[3.755,8.709],
+  SXM:[18.041,-63.109],TFS:[28.045,-16.572],TLS:[43.629,1.368],TLV:[32.011,34.887],
+  TNG:[35.727,-5.916],TNR:[-18.797,47.479],TOS:[69.683,18.919],TUN:[36.851,10.227],
+  VCE:[45.505,12.352],VIE:[48.110,16.570],VLC:[39.489,-0.482],VRN:[45.396,10.888],
+  WAW:[52.166,20.967],YOW:[45.323,-75.669],YQB:[46.791,-71.393],YUL:[45.470,-73.741],
+  YVR:[49.195,-123.184],YYZ:[43.677,-79.631],ZAG:[45.743,16.069],ZNZ:[-6.220,39.225],
+  ZRH:[47.458,8.548],
+};
 
-// ── LABELS ──
-const CO_LABELS = { LH:'Long-courrier', MH:'Moyen-courrier', SH:'Court-courrier' };
-const REG_LABELS = { ameriques:'Amériques', asie:'Asie', afrique:'Afrique', europe:'Europe', dom:'DOM-TOM', france:'France', 'moyen-orient':'Moyen-Orient' };
-const REG_BADGE = { ameriques:'b-reg', asie:'b-asi', afrique:'b-afr', europe:'b-eur', dom:'b-dom', france:'b-fr', 'moyen-orient':'b-me' };
-const CO_BADGE = { LH:'b-lh', MH:'b-mh', SH:'b-sh' };
+const CO_COLOR  = {LH:'#7c3aed',MH:'#0891b2',SH:'#059669'};
+const CO_LABELS = {LH:'Long-courrier',MH:'Moyen-courrier',SH:'Court-courrier'};
+const REG_LABELS= {ameriques:'Amériques',asie:'Asie',afrique:'Afrique',europe:'Europe',dom:'DOM-TOM',france:'France','moyen-orient':'Moyen-Orient'};
+const REG_BADGE = {ameriques:'b-reg',asie:'b-asi',afrique:'b-afr',europe:'b-eur',dom:'b-dom',france:'b-fr','moyen-orient':'b-me'};
+const CO_BADGE  = {LH:'b-lh',MH:'b-mh',SH:'b-sh'};
 
-// ── UTILS ──
-function nextHour() {
-  const n = new Date(), h = n.getMinutes() === 0 ? n.getHours() : n.getHours() + 1;
-  return String(h % 24).padStart(2,'0') + ':00';
+let ROUTES=[],lastResults=[],fCo='all',fReg='all',curMode='single',curView='list',depOptions=[];
+let map=null,mapLayers=[];
+
+function nextHour(){const n=new Date(),h=n.getMinutes()===0?n.getHours():n.getHours()+1;return String(h%24).padStart(2,'0')+':00';}
+function pt(s){const[h,m]=s.split(':').map(Number);return h*60+m;}
+function addM(b,m){return(b+m)%(24*60);}
+function ft(t){return String(Math.floor(t/60)%24).padStart(2,'0')+':'+String(t%60).padStart(2,'0');}
+function fd(m){return Math.floor(m/60)+'h'+(m%60?String(m%60).padStart(2,'0'):'');}
+function inW(a,f,t){return f<=t?a>=f&&a<=t:a>=f||a<=t;}
+
+function greatCircle(lat1,lon1,lat2,lon2,n=80){
+  const r=Math.PI/180,d2r=d=>d*r,r2d=r=>r*180/Math.PI;
+  const p1=d2r(lat1),l1=d2r(lon1),p2=d2r(lat2),l2=d2r(lon2);
+  const d=2*Math.asin(Math.sqrt(Math.sin((p2-p1)/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin((l2-l1)/2)**2));
+  if(d===0)return[[lat1,lon1]];
+  const pts=[];
+  for(let i=0;i<=n;i++){
+    const f=i/n,A=Math.sin((1-f)*d)/Math.sin(d),B=Math.sin(f*d)/Math.sin(d);
+    const x=A*Math.cos(p1)*Math.cos(l1)+B*Math.cos(p2)*Math.cos(l2);
+    const y=A*Math.cos(p1)*Math.sin(l1)+B*Math.cos(p2)*Math.sin(l2);
+    const z=A*Math.sin(p1)+B*Math.sin(p2);
+    pts.push([r2d(Math.atan2(z,Math.sqrt(x*x+y*y))),r2d(Math.atan2(y,x))]);
+  }
+  return pts;
 }
-function pt(s) { const [h,m] = s.split(':').map(Number); return h*60+m; }
-function addM(b,m) { return (b+m)%(24*60); }
-function ft(t) { return String(Math.floor(t/60)%24).padStart(2,'0')+':'+String(t%60).padStart(2,'0'); }
-function fd(m) { return Math.floor(m/60)+'h'+(m%60?String(m%60).padStart(2,'0'):''); }
-function inW(a,f,t) { return f<=t ? a>=f&&a<=t : a>=f||a<=t; }
 
-// ── LOAD DATA ──
-async function loadRoutes() {
-  try {
-    const res = await fetch(ROUTES_URL + '?t=' + Date.now());
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    ROUTES = await res.json();
+async function loadRoutes(){
+  try{
+    const res=await fetch(ROUTES_URL+'?t='+Date.now());
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    ROUTES=await res.json();
     onRoutesLoaded();
-  } catch(e) {
-    document.getElementById('loading-state').innerHTML =
-      '<div style="font-size:40px">⚠️</div><div>Impossible de charger les données<br><small>' + e.message + '</small></div>';
+  }catch(e){
+    document.getElementById('loading-state').innerHTML='<div style="font-size:40px">⚠️</div><div>Impossible de charger les données<br><small>'+e.message+'</small></div>';
   }
 }
 
-function onRoutesLoaded() {
-  document.getElementById('loading-state').style.display = 'none';
-  document.getElementById('search-form').style.display = '';
-  document.getElementById('data-badge').textContent = '✅ ' + ROUTES.length + ' vols chargés';
-
-  // Construire la liste des aéroports de départ uniques
-  const deps = [...new Set(ROUTES.map(r => r.dep))].sort();
-  depOptions = deps;
-  const sel = document.getElementById('dep');
-  // Mettre CDG en premier
-  const sorted = ['CDG', 'ORY', ...deps.filter(d => d !== 'CDG' && d !== 'ORY')];
-  sorted.forEach(d => {
-    const o = document.createElement('option');
-    o.value = d; o.textContent = d;
-    sel.appendChild(o);
+function onRoutesLoaded(){
+  document.getElementById('loading-state').style.display='none';
+  document.getElementById('search-form').style.display='';
+  document.getElementById('data-badge').textContent='✅ '+ROUTES.length+' routes chargées';
+  const deps=[...new Set(ROUTES.map(r=>r.dep))].sort();
+  depOptions=deps;
+  const sel=document.getElementById('dep');
+  ['CDG','ORY',...deps.filter(d=>d!=='CDG'&&d!=='ORY')].forEach(d=>{
+    const o=document.createElement('option');o.value=d;o.textContent=d;sel.appendChild(o);
   });
-
-  // Horaires par défaut
-  const nh = nextHour();
-  document.getElementById('depTime').value = nh;
+  const nh=nextHour();
+  document.getElementById('depTime').value=nh;
   updateArrWindows(nh);
 }
 
-function updateArrWindows(depTime) {
-  const depMin = pt(depTime);
-  const from = addM(depMin, 60);
-  const to   = addM(depMin, 120);
-  document.getElementById('arrFrom').value = ft(from);
-  document.getElementById('arrTo').value   = ft(to);
+function updateArrWindows(t){
+  const m=pt(t);
+  document.getElementById('arrFrom').value=ft(addM(m,60));
+  document.getElementById('arrTo').value=ft(addM(m,120));
+}
+document.getElementById('depTime').addEventListener('change',function(){updateArrWindows(this.value);});
+document.getElementById('depTime').addEventListener('input',function(){updateArrWindows(this.value);});
+
+function setMode(m){
+  curMode=m;
+  document.getElementById('mode-single').className='seg-btn'+(m==='single'?' on':'');
+  document.getElementById('mode-multi').className='seg-btn'+(m==='multi'?' on':'');
+  document.getElementById('dep-section').style.display=m==='single'?'':'none';
 }
 
-document.getElementById('depTime').addEventListener('change', function() {
-  updateArrWindows(this.value);
-});
-document.getElementById('depTime').addEventListener('input', function() {
-  updateArrWindows(this.value);
-});
+function doSearch(){
+  const depMin=pt(document.getElementById('depTime').value);
+  const arrFrom=pt(document.getElementById('arrFrom').value);
+  const arrTo=pt(document.getElementById('arrTo').value);
+  const co=document.getElementById('courrier').value;
+  const dep=document.getElementById('dep').value;
 
-// ── MODE ──
-function setMode(m) {
-  curMode = m;
-  document.getElementById('mode-single').className = 'seg-btn' + (m==='single'?' on':'');
-  document.getElementById('mode-multi').className  = 'seg-btn' + (m==='multi' ?' on':'');
-  document.getElementById('dep-section').style.display = m==='single' ? '' : 'none';
-}
-
-// ── SEARCH ──
-function doSearch() {
-  const depMin  = pt(document.getElementById('depTime').value);
-  const arrFrom = pt(document.getElementById('arrFrom').value);
-  const arrTo   = pt(document.getElementById('arrTo').value);
-  const co      = document.getElementById('courrier').value;
-  const dep     = document.getElementById('dep').value;
-
-  fCo = 'all'; fReg = 'all';
-  document.querySelectorAll('#co-pills .pill, #reg-pills .pill').forEach(p => {
-    p.className = 'pill';
-    if (p.dataset.v === 'all') p.className = 'pill on';
+  fCo='all';fReg='all';
+  document.querySelectorAll('#co-pills .pill,#reg-pills .pill').forEach(p=>{
+    p.className='pill';if(p.dataset.v==='all')p.className='pill on';
   });
 
-  let results = [];
-  const sources = curMode === 'single' ? [dep] : depOptions;
-
-  sources.forEach(d => {
-    ROUTES.forEach(r => {
-      if (r.dep !== d) return;
-      if (co !== 'all' && r.co !== co) return;
-      const arrMin = addM(depMin, r.dur);
-      if (!inW(arrMin, arrFrom, arrTo)) return;
-      results.push({ ...r, depMin, arrMin });
+  let results=[];
+  (curMode==='single'?[dep]:depOptions).forEach(d=>{
+    ROUTES.forEach(r=>{
+      if(r.dep!==d)return;
+      if(co!=='all'&&r.co!==co)return;
+      const arrMin=addM(depMin,r.dur);
+      if(!inW(arrMin,arrFrom,arrTo))return;
+      results.push({...r,depMin,arrMin});
     });
   });
-
-  // Dédoublonner si mode multi (même num vol depuis bases différentes)
-  if (curMode === 'multi') {
-    const seen = new Set();
-    results = results.filter(r => {
-      const k = r.num + '|' + r.dep + '|' + r.arr;
-      if (seen.has(k)) return false;
-      seen.add(k); return true;
-    });
+  if(curMode==='multi'){
+    const seen=new Set();
+    results=results.filter(r=>{const k=r.dep+'|'+r.arr;if(seen.has(k))return false;seen.add(k);return true;});
   }
+  results.sort((a,b)=>a.dur-b.dur);
+  lastResults=results;
 
-  results.sort((a,b) => a.dur - b.dur);
-  lastResults = results;
+  document.getElementById('rh-title').textContent=curMode==='multi'?'Toutes bases':dep;
+  document.getElementById('rh-sub').textContent=`Départ ${ft(depMin)} · arrivée ${ft(arrFrom)}–${ft(arrTo)}`;
 
-  document.getElementById('rh-title').textContent =
-    curMode === 'multi' ? 'Toutes bases' : dep;
-  document.getElementById('rh-sub').textContent =
-    `Départ ${ft(depMin)} · arrivée ${ft(arrFrom)}–${ft(arrTo)}`;
-
+  setView('list');
   renderResults();
   showScreen('results');
 }
 
-// ── RENDER ──
-function renderResults() {
-  const r = lastResults.filter(x => {
-    if (fCo  !== 'all' && x.co  !== fCo)  return false;
-    if (fReg !== 'all' && x.reg !== fReg) return false;
-    return true;
-  });
+function getFiltered(){
+  return lastResults.filter(x=>(fCo==='all'||x.co===fCo)&&(fReg==='all'||x.reg===fReg));
+}
 
-  document.getElementById('results-info').textContent =
-    r.length ? `${r.length} vol${r.length>1?'s':''} trouvé${r.length>1?'s':''}` : '';
+function renderResults(){
+  const r=getFiltered();
+  document.getElementById('results-info').textContent=r.length?`${r.length} vol${r.length>1?'s':''} trouvé${r.length>1?'s':''}`:' ';
+  if(curView==='list')renderList(r);
+  else renderMap(r);
+}
 
-  const body = document.getElementById('results-body');
-  if (!r.length) {
-    body.innerHTML = '<div class="no-res">✈️<br><br>Aucun vol pour ce créneau.<br>Élargissez la plage horaire.</div>';
-    return;
-  }
-
-  const coClass = { LH:'lh', MH:'mh', SH:'sh' };
-
-  body.innerHTML = r.map(x => {
-    const route = curMode === 'multi' ? `<strong>${x.dep}</strong> → <strong>${x.arr}</strong>` : `${x.dep} → ${x.arr}`;
-    const sb = `https://www.simbrief.com/system/dispatch.php?orig=${x.dep}&dest=${x.arr}`;
-    const regLabel = REG_LABELS[x.reg] || x.reg;
-    const regBadge = REG_BADGE[x.reg] || 'b-reg';
-    return `
-    <div class="fcard ${coClass[x.co]||''}">
-      <div class="fcard-top">
-        <div class="fcard-dest">${route}</div>
-        <div class="fcard-num">${x.num} · ${x.cs} · ${x.ac}</div>
-        <div class="fcard-badges">
-          <span class="badge ${CO_BADGE[x.co]||'b-lh'}">${CO_LABELS[x.co]||x.co}</span>
-          <span class="badge ${regBadge}">${regLabel}</span>
-        </div>
+function renderList(r){
+  const body=document.getElementById('results-body');
+  if(!r.length){body.innerHTML='<div class="no-res">✈️<br><br>Aucun vol pour ce créneau.</div>';return;}
+  const cc={LH:'lh',MH:'mh',SH:'sh'};
+  body.innerHTML=r.map(x=>{
+    const route=curMode==='multi'?`<strong>${x.dep}</strong> → <strong>${x.arr}</strong>`:`${x.dep} → ${x.arr}`;
+    const sb=`https://www.simbrief.com/system/dispatch.php?orig=${x.dep}&dest=${x.arr}`;
+    return`<div class="fcard ${cc[x.co]||''}">
+      <div class="fcard-dest">${route}</div>
+      <div class="fcard-num">${x.num} · ${x.cs} · ${x.ac}</div>
+      <div class="fcard-badges">
+        <span class="badge ${CO_BADGE[x.co]||'b-lh'}">${CO_LABELS[x.co]||x.co}</span>
+        <span class="badge ${REG_BADGE[x.reg]||'b-reg'}">${REG_LABELS[x.reg]||x.reg}</span>
       </div>
       <div class="fcard-times">
         <div class="tblock"><div class="tval">${ft(x.depMin)}</div><div class="tlbl">départ</div></div>
@@ -443,30 +417,80 @@ function renderResults() {
   }).join('');
 }
 
-// ── PILLS ──
-function setPill(el, group) {
-  const pid = group === 'co' ? 'co-pills' : 'reg-pills';
-  document.querySelectorAll('#'+pid+' .pill').forEach(p => p.className = 'pill');
-  const v = el.dataset.v;
-  if (group === 'co') {
-    fCo = v;
-    el.className = 'pill' + (v==='LH'?' on-lh':v==='MH'?' on-mh':v==='SH'?' on-sh':' on');
-  } else {
-    fReg = v;
-    el.className = 'pill on';
+function renderMap(r){
+  if(!map){
+    map=L.map('leaflet-map',{zoomControl:true,attributionControl:false}).setView([30,10],2);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:18}).addTo(map);
   }
+  mapLayers.forEach(l=>map.removeLayer(l));
+  mapLayers=[];
+  if(!r.length)return;
+
+  const bounds=[];
+  const depSet=new Set(r.map(x=>x.dep));
+
+  r.forEach(x=>{
+    const dc=COORDS[x.dep],ac=COORDS[x.arr];
+    if(!dc||!ac)return;
+    const color=CO_COLOR[x.co]||'#1a56db';
+    const pts=greatCircle(dc[0],dc[1],ac[0],ac[1]);
+    const sb=`https://www.simbrief.com/system/dispatch.php?orig=${x.dep}&dest=${x.arr}`;
+    const popup=`<div class="map-popup"><strong>${x.dep} → ${x.arr}</strong><div class="pop-info">${x.num} · ${x.ac}<br>⏱ ${fd(x.dur)} · ${ft(x.depMin)}→${ft(x.arrMin)}</div><a href="${sb}" target="_blank" class="pop-sb">Ouvrir dans Simbrief ↗</a></div>`;
+
+    const line=L.polyline(pts,{color,weight:2,opacity:0.75,smoothFactor:1});
+    line.bindPopup(popup);line.addTo(map);mapLayers.push(line);
+
+    // Point d'arrivée
+    const dot=L.circleMarker(ac,{radius:5,fillColor:color,color:'#fff',weight:1.5,fillOpacity:1});
+    dot.bindPopup(popup);dot.addTo(map);mapLayers.push(dot);
+
+    // Label arrivée
+    const lbl=L.marker(ac,{icon:L.divIcon({className:'',html:`<div style="font-size:10px;font-weight:700;color:#fff;background:${color};padding:1px 5px;border-radius:4px;white-space:nowrap;margin-left:8px;margin-top:-8px">${x.arr}</div>`,iconAnchor:[0,0]})});
+    lbl.addTo(map);mapLayers.push(lbl);
+
+    bounds.push(dc,ac);
+  });
+
+  // Points de départ en blanc
+  depSet.forEach(dep=>{
+    const c=COORDS[dep];if(!c)return;
+    const dot=L.circleMarker(c,{radius:7,fillColor:'#fff',color:'#1a56db',weight:2.5,fillOpacity:1});
+    const lbl=L.marker(c,{icon:L.divIcon({className:'',html:`<div style="font-size:11px;font-weight:700;color:#fff;background:#1a56db;padding:2px 6px;border-radius:5px;white-space:nowrap;margin-left:10px;margin-top:-10px">${dep}</div>`,iconAnchor:[0,0]})});
+    dot.addTo(map);lbl.addTo(map);
+    mapLayers.push(dot,lbl);
+  });
+
+  if(bounds.length)map.fitBounds(bounds,{padding:[40,40]});
+  setTimeout(()=>map.invalidateSize(),100);
+}
+
+function setView(v){
+  curView=v;
+  document.getElementById('vtab-list').className='vtab'+(v==='list'?' on':'');
+  document.getElementById('vtab-map').className='vtab'+(v==='map'?' on':'');
+  document.getElementById('results-body').style.display=v==='list'?'':'none';
+  const mv=document.getElementById('map-view');
+  if(v==='map'){mv.classList.add('active');renderMap(getFiltered());}
+  else{mv.classList.remove('active');renderList(getFiltered());}
+}
+
+function setPill(el,group){
+  const pid=group==='co'?'co-pills':'reg-pills';
+  document.querySelectorAll('#'+pid+' .pill').forEach(p=>p.className='pill');
+  const v=el.dataset.v;
+  if(group==='co'){fCo=v;el.className='pill'+(v==='LH'?' on-lh':v==='MH'?' on-mh':v==='SH'?' on-sh':' on');}
+  else{fReg=v;el.className='pill on';}
   renderResults();
 }
 
-// ── SCREENS ──
-function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('s-'+id).classList.add('active');
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
   document.getElementById('tab-'+id).classList.add('on');
+  if(id==='results'&&curView==='map'&&map)setTimeout(()=>map.invalidateSize(),150);
 }
 
-// ── INIT ──
 loadRoutes();
 </script>
 </body>
