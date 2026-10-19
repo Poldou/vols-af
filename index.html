@@ -322,7 +322,7 @@ function onLoaded(){
   const days=META.days||[];
   document.getElementById('data-note').textContent = days.length
     ? `Vols observés du ${days[0]} au ${days[days.length-1]} (OpenSky). Temps de bloc estimé = temps observé + ${META.offset_min} min (calibré sur les programmes officiels). Air France, HOP! et compagnies importées : programme officiel.`
-    : 'Programmes GPNet : Air France et compagnies importées. Les autres compagnies apparaîtront après la première collecte OpenSky.';
+    : 'Air France, HOP! et compagnies importées : programme officiel. Les autres compagnies apparaîtront après la première collecte OpenSky.';
 
   const nh=nextHour();
   document.getElementById('depTime').value=nh;
