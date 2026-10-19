@@ -3,6 +3,8 @@ name: Mise à jour des vols
 on:
   schedule:
     - cron: '17 6 * * *'   # tous les jours vers 08h17 (Paris, heure d'été)
+  push:
+    paths: ['.github/run-now']   # modifier ce fichier relance une collecte
   workflow_dispatch:
     inputs:
       days:
@@ -37,7 +39,7 @@ jobs:
         env:
           OPENSKY_CLIENT_ID: ${{ secrets.OPENSKY_CLIENT_ID }}
           OPENSKY_CLIENT_SECRET: ${{ secrets.OPENSKY_CLIENT_SECRET }}
-        run: python3 scripts/collect.py --days "${{ github.event.inputs.days || '3' }}"
+        run: python3 scripts/collect.py --days "${{ github.event.inputs.days || '7' }}"
 
       - name: Construction de routes.json
         run: python3 scripts/build.py
