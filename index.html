@@ -283,14 +283,19 @@ function aptName(code){const a=AIRPORTS[code];return a?(a[3]||a[2]):'';}
 function airlineName(code){return (AIRLINES[code]&&AIRLINES[code][0])||code;}
 
 // ── chargement ──
+// Lecture directe dans le dépôt (à jour dès le commit du robot), sinon fichiers servis par GitHub Pages
+const RAW='https://raw.githubusercontent.com/Poldou/vols-af/main/';
+async function getJSON(name,required){
+  const t='?t='+Date.now();
+  for(const base of [RAW,'']){
+    try{const x=await fetch(base+name+t);if(x.ok)return await x.json();}catch(e){}
+  }
+  if(required)throw new Error(name+' introuvable');
+  return {};
+}
 async function loadData(){
   try{
-    const t='?t='+Date.now();
-    const [r,a,m]=await Promise.all([
-      fetch('routes.json'+t).then(x=>{if(!x.ok)throw new Error('routes.json HTTP '+x.status);return x.json();}),
-      fetch('airports.json'+t).then(x=>x.ok?x.json():{}),
-      fetch('meta.json'+t).then(x=>x.ok?x.json():{}).catch(()=>({}))
-    ]);
+    const [r,a,m]=await Promise.all([getJSON('routes.json',true),getJSON('airports.json',true),getJSON('meta.json',false)]);
     const cols=r.cols;
     ROUTES=r.rows.map(row=>Object.fromEntries(cols.map((c,i)=>[c,row[i]])));
     AIRLINES=r.airlines||{}; AIRPORTS=a; META=m;
