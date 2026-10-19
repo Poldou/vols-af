@@ -1,5 +1,5 @@
 {
- "updated": "2026-10-19 16:37 UTC",
+ "updated": "2026-10-19 16:45 UTC",
  "days": [
   "2026-10-15",
   "2026-10-16",
@@ -8,7 +8,7 @@
  ],
  "offset_min": 28,
  "calib_routes": 65,
- "routes": 9462,
- "airlines": 534,
- "airports": 1588
+ "routes": 9610,
+ "airlines": 535,
+ "airports": 1593
 }

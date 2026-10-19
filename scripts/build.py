@@ -2,13 +2,13 @@
 """Construit routes.json, airports.json et meta.json pour l'app.
 
 Sources :
-  - data/af_gpnet.json  : programme Air France (GPNet), prioritaire pour AF
+  - data/gpnet.json     : programmes GPNet (AF, KLM, Delta, Transavia…), prioritaires
   - data/daily/*.json   : vols observés par OpenSky (toutes compagnies)
   - airports.csv        : OurAirports (OACI -> IATA, coordonnées, pays)
   - airlines.dat        : OpenFlights (OACI compagnie -> nom, code IATA)
 
 Les durées OpenSky (premier/dernier contact ADS-B) sont converties en temps de bloc
-estimé grâce à un décalage calibré sur les routes Air France présentes dans les deux sources.
+estimé grâce à un décalage calibré sur les routes GPNet présentes dans les deux sources.
 """
 import argparse
 import csv
@@ -127,34 +127,49 @@ def main():
             g['ac'].update(r['ac'])
             g['cs'].update(r['cs'])
 
-    # 2. Programme AF (GPNet)
-    gp_path = ROOT / 'data' / 'af_gpnet.json'
+    # 2. Programmes GPNet (AF, KLM, Delta, Transavia…) — prioritaires sur OpenSky
+    gp_path = ROOT / 'data' / 'gpnet.json'
+    if not gp_path.exists():
+        gp_path = ROOT / 'data' / 'af_gpnet.json'
     gpnet = json.loads(gp_path.read_text()) if gp_path.exists() else []
-    gp_index = {(r['dep'], r['arr']): r for r in gpnet}
+    iata_to_icao = {v[0]: k for k, v in airlines.items() if v[0] and v[2]}
+    for r in gpnet:
+        if len(r['al']) == 2:
+            r['al'] = iata_to_icao.get(r['al'], r['al'])
+            if len(r['al']) == 3:
+                r['cs'] = r['al'] + r['cs'][2:]
+    gp_airlines = {r['al'] for r in gpnet}
+    gp_index = {(r['al'], r['dep'], r['arr']): r for r in gpnet}
 
-    # 3. Calibrage temps observé -> temps de bloc sur les routes AF communes
+    # 3. Calibrage temps observé -> temps de bloc sur les routes GPNet présentes aussi dans OpenSky
     diffs = []
     for key, g in agg.items():
         al, d, a = key.split('|')
-        if al != 'AFR' or g['n'] < 2:
+        if al not in gp_airlines or g['n'] < 2:
             continue
         da, aa = by_icao.get(d), by_icao.get(a)
-        gp = gp_index.get((da and da['iata'], aa and aa['iata']))
+        gp = gp_index.get((al, da and da['iata'], aa and aa['iata']))
         if gp:
             diffs.append(gp['dur'] - robust_mean(g['dur']))
     offset = round(min(40, max(0, statistics.median(diffs)))) if len(diffs) >= 15 else 15
+
+    def courrier(da, aa):
+        if not (da and aa):
+            return 'MH'
+        dist = km(da, aa)
+        return 'SH' if dist < 1000 else 'MH' if dist < 4500 else 'LH'
 
     rows = []
     for r in gpnet:
         da, aa = by_iata.get(r['dep']), by_iata.get(r['arr'])
         code_of(da, r['dep'])
         code_of(aa, r['arr'])
-        rows.append(['AFR', r['cs'], r['fn'], r['dep'], r['arr'], r['hdep'], r['dur'], r['ac'],
-                     r['co'], route_region(da, aa), r['n'], 'G'])
+        rows.append([r['al'], r['cs'], r['fn'], r['dep'], r['arr'], r['hdep'], r['dur'], r['ac'],
+                     r['co'] or courrier(da, aa), route_region(da, aa), r['n'], 'G'])
 
     for key, g in agg.items():
         al, d, a = key.split('|')
-        if g['n'] < args.min_n or (al == 'AFR' and gpnet):
+        if g['n'] < args.min_n or al in gp_airlines:
             continue
         da, aa = by_icao.get(d), by_icao.get(a)
         if not (da and aa):

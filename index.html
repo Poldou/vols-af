@@ -321,8 +321,8 @@ function onLoaded(){
   document.getElementById('data-badge').textContent=`✅ ${ROUTES.length} routes · ${nAl} compagnie${nAl>1?'s':''}`;
   const days=META.days||[];
   document.getElementById('data-note').textContent = days.length
-    ? `Vols observés du ${days[0]} au ${days[days.length-1]} (OpenSky). Temps de bloc estimé = temps observé + ${META.offset_min} min, calibré sur Air France. Air France : programme GPNet.`
-    : 'Air France : programme GPNet. Les autres compagnies apparaîtront après la première collecte OpenSky.';
+    ? `Vols observés du ${days[0]} au ${days[days.length-1]} (OpenSky). Temps de bloc estimé = temps observé + ${META.offset_min} min (calibré sur les programmes GPNet). Air France, HOP! et compagnies importées : programmes GPNet.`
+    : 'Programmes GPNet : Air France et compagnies importées. Les autres compagnies apparaîtront après la première collecte OpenSky.';
 
   const nh=nextHour();
   document.getElementById('depTime').value=nh;
@@ -460,8 +460,14 @@ function greatCircle(lat1,lon1,lat2,lon2,n=64){
 
 function renderMap(r){
   if(!map){
-    map=L.map('leaflet-map',{zoomControl:true,attributionControl:false,worldCopyJump:true}).setView([30,10],2);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:18}).addTo(map);
+    map=L.map('leaflet-map',{zoomControl:true,worldCopyJump:true}).setView([30,10],2);
+    map.attributionControl.setPrefix(false);
+    // Fond Esri sans clé d'API ; bascule sur OpenStreetMap si les tuiles ne chargent pas
+    const esri=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+      {maxZoom:16,attribution:'Esri, HERE, Garmin, © OpenStreetMap'}).addTo(map);
+    let fails=0;
+    esri.on('tileerror',()=>{if(++fails===3){map.removeLayer(esri);
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap'}).addTo(map);}});
   }
   mapLayers.forEach(l=>map.removeLayer(l)); mapLayers=[];
   const note=document.getElementById('map-note');
