@@ -1,10 +1,10 @@
-# Vols réels
+# Planificateur Vol
 
 App web (PWA) pour trouver un vol réel qui colle à un créneau : « je pars à 19h, j'arrive entre 22h et 23h ».
 
 - Toutes les autres compagnies : vols réellement effectués, collectés chaque nuit via l'API OpenSky Network.
   La durée affichée est un temps de bloc estimé : temps observé en ADS-B + un décalage calibré automatiquement
-  sur les routes Air France présentes dans les deux sources (voir `meta.json`).
+  sur les routes présentes dans les horaires importés et dans OpenSky (voir `meta.json`).
 
 ## Mise à jour automatique
 

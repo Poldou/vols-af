@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Vols">
+<meta name="apple-mobile-web-app-title" content="Planificateur Vol">
 <meta name="theme-color" content="#1a56db">
-<title>Vols réels</title>
+<title>Planificateur Vol</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <style>
 :root {
@@ -122,8 +122,8 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
   <!-- RECHERCHE -->
   <div class="screen active" id="s-search">
     <div class="header">
-      <div class="header-title">✈️ Vols réels</div>
-      <div class="header-sub">Programme AF + vols observés toutes compagnies</div>
+      <div class="header-title">✈️ Planificateur Vol</div>
+      <div class="header-sub">Vols réels, toutes compagnies</div>
     </div>
     <div class="scroll-body">
       <div class="loading" id="loading-state">
@@ -321,8 +321,8 @@ function onLoaded(){
   document.getElementById('data-badge').textContent=`✅ ${ROUTES.length} routes · ${nAl} compagnie${nAl>1?'s':''}`;
   const days=META.days||[];
   document.getElementById('data-note').textContent = days.length
-    ? `Vols observés du ${days[0]} au ${days[days.length-1]} (OpenSky). Temps de bloc estimé = temps observé + ${META.offset_min} min (calibré sur les programmes officiels). Air France, HOP! et compagnies importées : programme officiel.`
-    : 'Air France, HOP! et compagnies importées : programme officiel. Les autres compagnies apparaîtront après la première collecte OpenSky.';
+    ? `Vols observés du ${days[0]} au ${days[days.length-1]} (OpenSky). Temps de bloc estimé = temps observé + ${META.offset_min} min. Compagnies importées : horaires officiels.`
+    : 'Compagnies importées : horaires officiels. Les autres compagnies apparaîtront après la première collecte OpenSky.';
 
   const nh=nextHour();
   document.getElementById('depTime').value=nh;
@@ -410,7 +410,7 @@ function simbriefUrl(x){
 function card(x){
   const cc={LH:'',MH:'mh',SH:'sh'}[x.co]||'';
   const real=x.hdep?`Départ réel habituel : ${utcToParis(x.hdep)} (Paris)`:'';
-  const src=x.src==='G'?'Programme AF':`${x.n} vol${x.n>1?'s':''} observé${x.n>1?'s':''}`;
+  const src=x.src==='G'?'Horaire officiel':`${x.n} vol${x.n>1?'s':''} observé${x.n>1?'s':''}`;
   return `<div class="fcard ${cc}">
     <div class="fcard-al">${esc(airlineName(x.al))}</div>
     <div class="fcard-dest">${x.dep} → ${x.arr}</div>

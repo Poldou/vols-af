@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Convertit des exports GPNet (exportFlights*.zip ou .csv) en data/gpnet.json.
+"""Convertit des exports d'horaires (exportFlights*.zip ou .csv, séparateur « ; ») en data/schedules.json.
 
 Toutes les compagnies présentes dans la colonne « Operating » sont gardées
 (Air France, KLM, Delta, Transavia…). À lancer en local : les exports bruts
 ne doivent pas être publiés sur GitHub.
 
-    python3 scripts/gpnet_to_json.py export1.zip export2.zip ...
+    python3 scripts/import_schedules.py export1.zip export2.zip ...
 
-Chaque lancement remplace complètement data/gpnet.json : passe tous les exports
+Chaque lancement remplace complètement data/schedules.json : passe tous les exports
 à jour en une seule fois.
 """
 import csv
@@ -26,7 +26,7 @@ OPERATORS = {
     'RO': 'ROT', 'UX': 'AEA', 'OK': 'CSA', 'SU': 'AFL', 'TK': 'THY', 'XK': 'CCM', 'SS': 'CRL',
 }
 
-# Désignations GPNet -> codes OACI (identiques à ceux de Simbrief)
+# Désignations des exports -> codes OACI (identiques à ceux de Simbrief)
 AC_ICAO = {
     'BOEING 777-300ER': 'B77W', 'BOEING 777-200/200 ER': 'B772', 'BOEING 777-200LR': 'B77L',
     'BOEING 787-9': 'B789', 'BOEING 787-10': 'B78X', 'BOEING 787-8': 'B788',
@@ -125,7 +125,7 @@ def main(paths):
             'n': len(r['durs']),
         })
 
-    dest = Path(__file__).resolve().parent.parent / 'data' / 'gpnet.json'
+    dest = Path(__file__).resolve().parent.parent / 'data' / 'schedules.json'
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(json.dumps(out, ensure_ascii=False, separators=(',', ':')))
     print(f'{len(out)} routes -> {dest}')
