@@ -45,6 +45,7 @@ jobs:
         run: python3 scripts/build.py
 
       - name: Publication
+        if: always()   # garde les jours collectés même si la construction échoue
         run: |
           git config user.name "vols-af bot"
           git config user.email "actions@users.noreply.github.com"

@@ -87,7 +87,7 @@ def km(a, b):
 def robust_mean(values):
     med = statistics.median(values)
     keep = [v for v in values if abs(v - med) <= max(10, 0.2 * med)]
-    return sum(keep) / len(keep)
+    return sum(keep) / len(keep) if keep else med
 
 
 def mode_time(minutes):
