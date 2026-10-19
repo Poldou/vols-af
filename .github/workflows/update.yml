@@ -1,0 +1,52 @@
+name: Mise à jour des vols
+
+on:
+  schedule:
+    - cron: '17 6 * * *'   # tous les jours vers 08h17 (Paris, heure d'été)
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Nombre de jours passés à rattraper (1 à 14)"
+        default: '7'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-flights
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Bases de référence (aéroports, compagnies, avions)
+        run: |
+          curl -sSfL -o airports.csv https://raw.githubusercontent.com/davidmegginson/ourairports-data/main/airports.csv
+          curl -sSfL -o airlines.dat https://raw.githubusercontent.com/jpatokal/openflights/master/data/airlines.dat
+          curl -sSfL -o aircraft.csv.gz https://raw.githubusercontent.com/wiedehopf/tar1090-db/csv/aircraft.csv.gz || echo "base avions indisponible"
+
+      - name: Collecte OpenSky
+        env:
+          OPENSKY_CLIENT_ID: ${{ secrets.OPENSKY_CLIENT_ID }}
+          OPENSKY_CLIENT_SECRET: ${{ secrets.OPENSKY_CLIENT_SECRET }}
+        run: python3 scripts/collect.py --days "${{ github.event.inputs.days || '3' }}"
+
+      - name: Construction de routes.json
+        run: python3 scripts/build.py
+
+      - name: Publication
+        run: |
+          git config user.name "vols-af bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/daily routes.json airports.json meta.json
+          if git diff --cached --quiet; then echo "Rien de nouveau"; exit 0; fi
+          git commit -m "Données vols $(date -u +%Y-%m-%d)"
+          git push

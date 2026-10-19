@@ -1,0 +1,6 @@
+airports.csv
+airlines.dat
+aircraft.csv.gz
+exportFlights*.zip
+exportFlights*.csv
+__pycache__/
