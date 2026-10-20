@@ -49,6 +49,14 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .field-hint{font-size:12px;color:var(--sub);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .field select,.field input{width:100%;border:none;background:transparent;font-size:16px;color:var(--text);font-family:inherit;outline:none;-webkit-appearance:auto;}
 .field input[type=text]{text-transform:uppercase;}
+.field input[type=text]::placeholder{text-transform:none;}
+#dep-menu{display:none;max-height:280px;overflow-y:auto;-webkit-overflow-scrolling:touch;border-top:0.5px solid var(--border);}
+.dep-opt{display:flex;align-items:baseline;gap:10px;padding:10px 16px;cursor:pointer;border-bottom:0.5px solid var(--border);}
+.dep-opt:active,.dep-opt:hover{background:rgba(118,118,128,0.12);}
+.dep-opt b{font-size:15px;min-width:38px;}
+.dep-opt span{flex:1;font-size:13px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dep-opt em{font-style:normal;font-size:11px;color:var(--sub);}
+.dep-more{padding:10px 16px;font-size:12px;color:var(--sub);}
 .field select option{background:var(--card);color:var(--text);}
 .field-row{display:grid;grid-template-columns:1fr 1fr;}
 .field-row .field{border-right:0.5px solid var(--border);}
@@ -154,12 +162,12 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
             <div class="field">
               <div class="field-icon">📍</div>
               <div class="field-inner">
-                <div class="field-label">Départ depuis (code IATA)</div>
-                <input type="text" id="dep" list="dep-list" value="CDG" autocomplete="off" autocapitalize="characters" spellcheck="false">
-                <datalist id="dep-list"></datalist>
+                <div class="field-label">Départ depuis (code ou ville)</div>
+                <input type="text" id="dep" value="CDG" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Code, ville ou nom">
                 <div class="field-hint" id="dep-hint"></div>
               </div>
             </div>
+            <div id="dep-menu"></div>
           </div>
         </div>
 
@@ -331,20 +339,55 @@ function onLoaded(){
   updateArrWindows(nh);
 }
 
+// ── liste des aéroports de départ : tout afficher au clic, filtrer en tapant ──
+let DEP_COUNTS={}, DEP_ORDER=[];
+const norm=t=>String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 function refreshDepList(){
-  const deps={};
-  ROUTES.forEach(r=>{if(curAirline==='all'||r.al===curAirline)deps[r.dep]=(deps[r.dep]||0)+1;});
-  const list=Object.keys(deps).sort((a,b)=>deps[b]-deps[a]);
-  document.getElementById('dep-list').innerHTML=list.map(c=>`<option value="${c}">${esc(aptName(c))}</option>`).join('');
+  DEP_COUNTS={};
+  ROUTES.forEach(r=>{if(curAirline==='all'||r.al===curAirline)DEP_COUNTS[r.dep]=(DEP_COUNTS[r.dep]||0)+1;});
+  DEP_ORDER=Object.keys(DEP_COUNTS).sort((a,b)=>DEP_COUNTS[b]-DEP_COUNTS[a]);
   const inp=document.getElementById('dep');
-  if(!deps[inp.value.toUpperCase()]&&list.length)inp.value=list.includes('CDG')?'CDG':list[0];
+  if(!DEP_COUNTS[inp.value.trim().toUpperCase()]&&DEP_ORDER.length)inp.value=DEP_ORDER.includes('CDG')?'CDG':DEP_ORDER[0];
   depHint();
+  if(document.getElementById('dep-menu').style.display==='block')showDepMenu(false);
 }
+function showDepMenu(filter){
+  const q=norm(document.getElementById('dep').value.trim());
+  let list=DEP_ORDER;
+  if(filter&&q){
+    const code=[],other=[];
+    DEP_ORDER.forEach(c=>{
+      const a=AIRPORTS[c]||[], lc=c.toLowerCase();
+      if(lc.startsWith(q))code.push(c);
+      else if(norm(a[3]).includes(q)||norm(a[2]).includes(q))other.push(c);
+    });
+    list=code.concat(other);
+  }
+  const menu=document.getElementById('dep-menu');
+  const shown=list.slice(0,2000);
+  menu.innerHTML=shown.length?shown.map(c=>{const a=AIRPORTS[c]||[];return `<div class="dep-opt" data-c="${c}"><b>${c}</b><span>${esc(a[3]||a[2]||'')}${a[3]&&a[2]?' · '+esc(a[2]):''}</span><em>${DEP_COUNTS[c]}</em></div>`;}).join('')
+    +(list.length>shown.length?`<div class="dep-more">${list.length-shown.length} autres : tape le code ou la ville</div>`:'')
+    :'<div class="dep-more">Aucun aéroport ne correspond</div>';
+  menu.style.display='block';
+}
+function hideDepMenu(){document.getElementById('dep-menu').style.display='none';}
+function pickDep(c){const inp=document.getElementById('dep');inp.value=c;depHint();hideDepMenu();inp.blur();}
 function depHint(){
   const c=document.getElementById('dep').value.trim().toUpperCase(), a=AIRPORTS[c];
   document.getElementById('dep-hint').textContent=a?`${a[2]}${a[3]?' — '+a[3]:''}`:(c?'Aéroport inconnu dans les données':'');
 }
-document.getElementById('dep').addEventListener('input',depHint);
+(()=>{
+  const inp=document.getElementById('dep'), menu=document.getElementById('dep-menu');
+  inp.addEventListener('focus',()=>{inp.select();showDepMenu(false);});
+  inp.addEventListener('input',()=>{depHint();showDepMenu(true);});
+  inp.addEventListener('blur',()=>setTimeout(hideDepMenu,150));
+  inp.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){const f=menu.querySelector('.dep-opt');if(f)pickDep(f.dataset.c);e.preventDefault();}
+    if(e.key==='Escape')hideDepMenu();
+  });
+  menu.addEventListener('mousedown',e=>e.preventDefault());   // garde le focus pendant le clic
+  menu.addEventListener('click',e=>{const o=e.target.closest('.dep-opt');if(o)pickDep(o.dataset.c);});
+})();
 
 function updateArrWindows(t){
   const m=pt(t);
