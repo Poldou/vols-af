@@ -2,7 +2,7 @@ name: Mise à jour des vols
 
 on:
   schedule:
-    - cron: '17 6,18 * * *'   # deux passages par jour (08h17 et 20h17, heure d'été) : rattrape un quota épuisé
+    - cron: '17 6,18 1-3 * *'   # les 1er, 2 et 3 du mois : 2 passages suffisent pour 250 aéroports, les autres rattrapent un quota épuisé
   push:
     paths: ['.github/run-now']   # modifier ce fichier relance une collecte
   workflow_dispatch:
@@ -35,7 +35,7 @@ jobs:
         env:
           OPENSKY_CLIENT_ID: ${{ secrets.OPENSKY_CLIENT_ID }}
           OPENSKY_CLIENT_SECRET: ${{ secrets.OPENSKY_CLIENT_SECRET }}
-        run: python3 scripts/collect.py
+        run: python3 scripts/collect.py ${{ github.event_name == 'schedule' && '' || '--force' }}   # relance manuelle : collecte même si le tour du mois est fait
 
       - name: Construction de routes.json
         run: python3 scripts/build.py

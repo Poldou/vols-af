@@ -101,7 +101,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--airports', default='airports.csv')
     ap.add_argument('--airlines', default='airlines.dat')
-    ap.add_argument('--window', type=int, default=21)
+    ap.add_argument('--window', type=int, default=400, help='nombre max de journées OpenSky prises en compte')
     ap.add_argument('--min-n', type=int, default=2, help='vols observés minimum pour garder une route OpenSky')
     args = ap.parse_args()
 

@@ -180,7 +180,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--days', type=int, default=2, help='(ignoré, conservé pour compatibilité)')
     ap.add_argument('--aircraft-db', default='aircraft.csv.gz')
-    ap.add_argument('--keep', type=int, default=21, help='jours conservés dans data/daily')
+    ap.add_argument('--keep', type=int, default=120, help='jours conservés dans data/daily')
+    ap.add_argument('--force', action='store_true', help='collecter même si le tour du mois est déjà fait')
     ap.add_argument('--budget', type=int, default=3900, help='crédits OpenSky utilisables par passage')
     args = ap.parse_args()
 
@@ -197,6 +198,10 @@ def main():
         state = {'airports': airport_list(), 'cursor': 0, 'built': str(today)}
         log(f'Nouvelle liste de {len(state["airports"])} aéroports')
     apts = state['airports']
+    month = today.strftime('%Y-%m')
+    if state.get('full_cycle') == month and not args.force:
+        log(f'Tour complet des {len(apts)} aéroports déjà fait ce mois-ci ({month}) : rien à collecter')
+        return
 
     # Fenêtre : avant-hier 00:00 -> hier 23:59:59 UTC (2 partitions = 30 crédits par aéroport)
     end = int(dt.datetime(today.year, today.month, today.day, tzinfo=dt.timezone.utc).timestamp()) - 1
@@ -222,6 +227,10 @@ def main():
         log(f'  {apt} : {len(flights)} départs, {n} vols de ligne retenus (crédits restants : {left})')
         state['cursor'] = (state['cursor'] + 1) % len(apts)
         done += 1
+        if state['cursor'] == 0:
+            state['full_cycle'] = month
+            log(f'Tour complet terminé pour {month}')
+            break
         if left is not None and int(left) < COST * 2:
             log('Quota du jour presque épuisé, arrêt')
             break
