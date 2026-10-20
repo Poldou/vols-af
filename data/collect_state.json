@@ -251,14 +251,14 @@
   "KBTV",
   "KLEX"
  ],
- "cursor": 0,
+ "cursor": 125,
  "built": "2026-10-20",
  "last_run": {
-  "utc": "2026-10-20 07:56",
-  "airports": 0,
-  "credits_spent": 0,
-  "credits_left": null,
-  "message": "Quota OpenSky atteint (r\u00e9essayer dans 8h21)",
-  "retry_after_s": 30082
+  "utc": "2026-10-20 18:51",
+  "airports": 125,
+  "credits_spent": 3750,
+  "credits_left": "250",
+  "message": "ok",
+  "retry_after_s": null
  }
 }
