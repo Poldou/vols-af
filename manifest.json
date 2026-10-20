@@ -1,0 +1,2 @@
+{"name":"Planificateur Vol","short_name":"Planif Vol","start_url":"./","display":"standalone","background_color":"#f2f2f7","theme_color":"#1a56db",
+ "icons":[{"src":"icons/icon-192.png","sizes":"192x192","type":"image/png"},{"src":"icons/icon-512.png","sizes":"512x512","type":"image/png"},{"src":"icons/icon.svg","sizes":"any","type":"image/svg+xml"}]}
