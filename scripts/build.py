@@ -2,7 +2,8 @@
 """Construit routes.json, airports.json et meta.json pour l'app.
 
 Sources :
-  - data/schedules.json : horaires officiels importés (par compagnie), prioritaires
+  - data/schedules.json : vols datés importés (horaires exacts), prioritaires
+  - data/weekly.json    : programmes hebdomadaires importés (durée exacte ou estimée)
   - data/daily/*.json   : vols observés par OpenSky (toutes compagnies)
   - airports.csv        : OurAirports (OACI -> IATA, coordonnées, pays)
   - airlines.dat        : OpenFlights (OACI compagnie -> nom, code IATA)
@@ -128,28 +129,58 @@ def main():
             g['cs'].update(r['cs'])
 
     # 2. Horaires officiels importés — prioritaires sur OpenSky
-    sc_path = ROOT / 'data' / 'schedules.json'
-    sched = json.loads(sc_path.read_text()) if sc_path.exists() else []
+    #    schedules.json : vols datés (horaires et durées exacts)
+    #    weekly.json    : programmes hebdomadaires (durée exacte si heures locales fournies, sinon estimée)
+    ops = {'AF': 'AFR', 'KL': 'KLM', 'DL': 'DAL', 'TO': 'TVF', 'HV': 'TRA', 'A5': 'HOP', 'WA': 'KLC'}
     iata_to_icao = {v[0]: k for k, v in airlines.items() if v[0] and v[2]}
+
+    def to_icao(code):
+        return code if len(code) == 3 else ops.get(code) or iata_to_icao.get(code, code)
+
+    def load(name):
+        p = ROOT / 'data' / name
+        return json.loads(p.read_text()) if p.exists() else []
+
+    sched = load('schedules.json')
     for r in sched:
-        if len(r['al']) == 2:
-            r['al'] = iata_to_icao.get(r['al'], r['al'])
-            if len(r['al']) == 3:
-                r['cs'] = r['al'] + r['cs'][2:]
-    sc_airlines = {r['al'] for r in sched}
+        r['al'] = to_icao(r['al'])
+        r['cs'] = r['al'] + r['fn'][2:] if len(r['al']) == 3 else r['cs']
     sc_index = {(r['al'], r['dep'], r['arr']): r for r in sched}
 
+    weekly = []
+    for r in load('weekly.json'):
+        al = to_icao(r['op'])
+        if (al, r['dep'], r['arr']) in sc_index:
+            continue  # déjà couvert par les vols datés
+        weekly.append({**r, 'al': al, 'cs': (al if len(al) == 3 else r['op']) + r['fn'][2:]})
+
+    official = {(r['al'], r['dep'], r['arr']) for r in sched} | {(r['al'], r['dep'], r['arr']) for r in weekly}
+    timed = {(r['al'], r['dep'], r['arr']): r['dur'] for r in sched}
+    timed.update({(r['al'], r['dep'], r['arr']): r['dur'] for r in weekly if r['dur']})
+
     # 3. Calibrage temps observé -> temps de bloc sur les routes présentes dans les deux sources
-    diffs = []
+    diffs, observed = [], {}
     for key, g in agg.items():
         al, d, a = key.split('|')
-        if al not in sc_airlines or g['n'] < 2:
-            continue
         da, aa = by_icao.get(d), by_icao.get(a)
-        sc = sc_index.get((al, da and da['iata'], aa and aa['iata']))
-        if sc:
-            diffs.append(sc['dur'] - robust_mean(g['dur']))
+        k = (al, da and da['iata'], aa and aa['iata'])
+        observed[k] = g
+        if g['n'] >= 2 and k in timed:
+            diffs.append(timed[k] - robust_mean(g['dur']))
     offset = round(min(40, max(0, statistics.median(diffs)))) if len(diffs) >= 15 else 15
+
+    # 4. Modèle distance -> temps de bloc, appris sur les durées officielles
+    pts = []
+    for (al, d, a), dur in timed.items():
+        da, aa = by_iata.get(d), by_iata.get(a)
+        if da and aa:
+            pts.append((km(da, aa), dur))
+    if len(pts) >= 30:
+        mx, my = sum(x for x, _ in pts) / len(pts), sum(y for _, y in pts) / len(pts)
+        slope = sum((x - mx) * (y - my) for x, y in pts) / sum((x - mx) ** 2 for x, _ in pts)
+        inter = my - slope * mx
+    else:
+        slope, inter = 60 / 800, 30
 
     def courrier(da, aa):
         if not (da and aa):
@@ -165,12 +196,33 @@ def main():
         rows.append([r['al'], r['cs'], r['fn'], r['dep'], r['arr'], r['hdep'], r['dur'], r['ac'],
                      r['co'] or courrier(da, aa), route_region(da, aa), r['n'], 'G'])
 
+    n_est = {'opensky': 0, 'modele': 0}
+    for r in weekly:
+        da, aa = by_iata.get(r['dep']), by_iata.get(r['arr'])
+        if not (da and aa):
+            continue
+        code_of(da, r['dep'])
+        code_of(aa, r['arr'])
+        dur, hdep, ac, src = r['dur'], r['hdep'], r['ac'], 'G'
+        if not dur:
+            g = observed.get((r['al'], r['dep'], r['arr']))
+            if g and g['n'] >= 2:
+                dur, src = round(robust_mean(g['dur'])) + offset, 'E'
+                hdep = hdep or mode_time(g['dep'])
+                ac = ac or (g['ac'].most_common(1)[0][0] if g['ac'] else '')
+                n_est['opensky'] += 1
+            else:
+                dur, src = round(inter + slope * km(da, aa)), 'E'
+                n_est['modele'] += 1
+        rows.append([r['al'], r['cs'], r['fn'], r['dep'], r['arr'], hdep, dur, ac,
+                     courrier(da, aa), route_region(da, aa), r['n'], src])
+
     for key, g in agg.items():
         al, d, a = key.split('|')
-        if g['n'] < args.min_n or al in sc_airlines:
+        if g['n'] < args.min_n:
             continue
         da, aa = by_icao.get(d), by_icao.get(a)
-        if not (da and aa):
+        if not (da and aa) or (al, da['iata'], aa['iata']) in official:
             continue
         dist = km(da, aa)
         if dist < 80:
@@ -195,6 +247,7 @@ def main():
         ensure_ascii=False, separators=(',', ':')))
     meta = {'updated': dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%d %H:%M UTC'),
             'days': [p.stem for p in days], 'offset_min': offset, 'calib_routes': len(diffs),
+            'model': {'min_fixe': round(inter), 'min_par_1000km': round(slope * 1000)}, 'estimees': n_est,
             'routes': len(rows), 'airlines': len(al_out), 'airports': len(used)}
     (ROOT / 'meta.json').write_text(json.dumps(meta, ensure_ascii=False, indent=1))
     print(json.dumps(meta, ensure_ascii=False))

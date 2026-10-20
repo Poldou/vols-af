@@ -412,7 +412,7 @@ function simbriefUrl(x){
 function card(x){
   const cc={LH:'',MH:'mh',SH:'sh'}[x.co]||'';
   const real=x.hdep?`Départ réel habituel : ${utcToParis(x.hdep)} (Paris)`:'';
-  const src=x.src==='G'?'Horaire officiel':`${x.n} vol${x.n>1?'s':''} observé${x.n>1?'s':''}`;
+  const src=x.src==='G'?'Horaire officiel':x.src==='E'?'Horaire officiel · durée estimée':`${x.n} vol${x.n>1?'s':''} observé${x.n>1?'s':''}`;
   return `<div class="fcard ${cc}">
     <div class="fcard-al">${esc(airlineName(x.al))}</div>
     <div class="fcard-dest">${x.dep} → ${x.arr}</div>
