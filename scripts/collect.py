@@ -78,7 +78,9 @@ class OpenSky:
                     return [], None
                 if e.code == 429:
                     wait = int(e.headers.get('X-Rate-Limit-Retry-After-Seconds', '0') or 0)
-                    raise RuntimeError(f'Quota OpenSky atteint (réessayer dans {wait // 3600}h{wait % 3600 // 60:02d})')
+                    err = RuntimeError(f'Quota OpenSky atteint (réessayer dans {wait // 3600}h{wait % 3600 // 60:02d})')
+                    err.retry_after = wait
+                    raise err
                 if e.code == 401 and attempt == 0:
                     self.token = None
                     continue
@@ -199,16 +201,18 @@ def main():
     # Fenêtre : avant-hier 00:00 -> hier 23:59:59 UTC (2 partitions = 30 crédits par aéroport)
     end = int(dt.datetime(today.year, today.month, today.day, tzinfo=dt.timezone.utc).timestamp()) - 1
     begin = end + 1 - 2 * 86400
-    spent, done = 0, 0
+    spent, done, message, retry, left = 0, 0, 'ok', None, None
     while done < GROUP and spent + COST <= args.budget:
         apt = apts[state['cursor'] % len(apts)]
         try:
             flights, left = api.get('/flights/departure', airport=apt, begin=begin, end=end)
         except RuntimeError as e:
             log(f'Arrêt : {e}')
+            message, retry = str(e), getattr(e, 'retry_after', None)
             break
         except urllib.error.HTTPError as e:
             log(f'  {apt} : erreur HTTP {e.code}, ignoré')
+            message = f'erreur HTTP {e.code} sur {apt}'
             flights, left = [], None
         spent += COST
         by_day = summarize(flights, acdb)
@@ -221,6 +225,9 @@ def main():
         if left is not None and int(left) < COST * 2:
             log('Quota du jour presque épuisé, arrêt')
             break
+    state['last_run'] = {'utc': dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%d %H:%M'), 'airports': done,
+                         'credits_spent': spent, 'credits_left': left, 'message': message,
+                         'retry_after_s': retry}
     STATE.write_text(json.dumps(state, indent=1))
     log(f'{done} aéroports interrogés, ~{spent} crédits utilisés, prochain départ au n°{state["cursor"]}')
 
