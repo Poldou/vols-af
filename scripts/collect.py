@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""Collecte les vols réellement effectués la veille via l'API OpenSky Network.
+"""Collecte les vols réellement effectués via l'API OpenSky Network.
 
-Pour chaque jour UTC manquant dans data/daily/, récupère tous les vols observés,
-garde ceux qui ont un indicatif de compagnie (3 lettres + numéro) et des aéroports
-de départ/arrivée connus, puis enregistre un résumé par compagnie et par route :
-nombre de vols, durées observées, heures de départ UTC, types d'avion, indicatifs.
+À chaque passage, interroge les départs des 2 derniers jours pour un groupe de 125 aéroports
+(sur une liste de 250 parcourue en rotation : chaque aéroport est donc couvert sans trou).
+Garde les vols avec un indicatif de compagnie (3 lettres + numéro) et des aéroports connus,
+et enregistre un résumé par jour, compagnie et route : nombre de vols, durées observées,
+heures de départ UTC, types d'avion, indicatifs.
 
 Variables d'environnement : OPENSKY_CLIENT_ID, OPENSKY_CLIENT_SECRET
-Usage : python3 scripts/collect.py [--days 3] [--aircraft-db aircraft.csv.gz]
+Usage : python3 scripts/collect.py [--budget 3900] [--aircraft-db aircraft.csv.gz]
 """
 import argparse
 import datetime as dt
@@ -28,9 +29,8 @@ TOKEN_URL = 'https://auth.opensky-network.org/auth/realms/opensky-network/protoc
 ROOT = Path(__file__).resolve().parent.parent
 DAILY = ROOT / 'data' / 'daily'
 CALLSIGN = re.compile(r'^([A-Z]{3})(\d[A-Z0-9]{0,4})$')
-MIN_FLIGHTS_PER_DAY = 2000  # en dessous, on considère que la journée n'est pas encore traitée par OpenSky
 
-# Aéroports interrogés si /flights/all n'est pas accessible avec le compte (repli)
+# Aéroports toujours interrogés (le reste de la liste vient des données déjà collectées)
 FALLBACK_AIRPORTS = """
 LFPG LFPO LFMN LFML LFLL LFBO LFBD LFRS LFSB LFST LFRN LFMP LFKJ LFKB
 EGLL EGKK EGSS EGCC EHAM EDDF EDDM EDDB EDDL EDDH LEMD LEBL LEPA LEMG LPPT LPPR
@@ -108,35 +108,38 @@ def load_aircraft_db(path):
     return db
 
 
-def fetch_day(api, day):
-    begin = int(dt.datetime(day.year, day.month, day.day, tzinfo=dt.timezone.utc).timestamp())
-    flights, left = [], None
-    try:
-        for i in range(12):  # /flights/all accepte au plus 2 h par requête
-            chunk, left = api.get('/flights/all', begin=begin + i * 7200, end=begin + (i + 1) * 7200)
-            flights.extend(chunk)
-            log(f'  {day} tranche {i + 1}/12 : {len(chunk)} vols (crédits restants : {left})')
-        return flights
-    except urllib.error.HTTPError as e:
-        if e.code not in (400, 403):
-            raise
-        log(f'  /flights/all refusé ({e.code}), repli sur {len(FALLBACK_AIRPORTS)} aéroports')
-    flights = []
-    for apt in FALLBACK_AIRPORTS:
-        chunk, left = api.get('/flights/departure', airport=apt, begin=begin, end=begin + 86400)
-        flights.extend(chunk)
-        log(f'  {day} {apt} : {len(chunk)} départs (crédits restants : {left})')
-    return flights
+COST = 30          # crédits OpenSky pour une requête sur 1 ou 2 jours passés
+GROUP = 125        # aéroports interrogés par passage (125 x 30 = 3 750 crédits, quota 4 000/jour)
+N_AIRPORTS = 2 * GROUP
+STATE = ROOT / 'data' / 'collect_state.json'
+
+
+def airport_list():
+    """Les aéroports qui ont le plus de départs dans les données déjà collectées, complétés par la liste fixe."""
+    count = Counter()
+    for p in DAILY.glob('*.json'):
+        for key, r in json.loads(p.read_text())['routes'].items():
+            count[key.split('|')[1]] += r['n']
+    ranked = [a for a, _ in count.most_common()]
+    out = list(dict.fromkeys(FALLBACK_AIRPORTS + ranked))
+    head = [a for a in out if a in FALLBACK_AIRPORTS]
+    rest = [a for a in out if a not in FALLBACK_AIRPORTS]
+    return (head + rest)[:N_AIRPORTS]
 
 
 def summarize(flights, acdb):
-    seen, routes = set(), defaultdict(lambda: {'n': 0, 'dur': [], 'dep': [], 'ac': Counter(), 'cs': Counter()})
+    """Regroupe les vols par jour UTC de départ, puis par compagnie|départ|arrivée."""
+    seen = set()
+    days = defaultdict(lambda: defaultdict(lambda: {'n': 0, 'dur': [], 'dep': [], 'ac': Counter(), 'cs': Counter()}))
     for f in flights:
         cs = (f.get('callsign') or '').strip().upper()
         m = CALLSIGN.match(cs)
         dep, arr = f.get('estDepartureAirport'), f.get('estArrivalAirport')
         t0, t1 = f.get('firstSeen'), f.get('lastSeen')
         if not (m and dep and arr and t0 and t1) or dep == arr:
+            continue
+        # dernier contact encore en croisière : l'aéroport d'arrivée estimé n'est pas fiable
+        if (f.get('estArrivalAirportVertDistance') or 0) > 6000:
             continue
         key_f = (f.get('icao24'), t0)
         if key_f in seen:
@@ -145,24 +148,38 @@ def summarize(flights, acdb):
         dur = round((t1 - t0) / 60)
         if not 15 <= dur <= 20 * 60:
             continue
-        r = routes[f'{m.group(1)}|{dep}|{arr}']
+        t = dt.datetime.fromtimestamp(t0, dt.timezone.utc)
+        r = days[str(t.date())][f'{m.group(1)}|{dep}|{arr}']
         r['n'] += 1
         r['dur'].append(dur)
-        r['dep'].append(dt.datetime.fromtimestamp(t0, dt.timezone.utc).hour * 60
-                        + dt.datetime.fromtimestamp(t0, dt.timezone.utc).minute)
+        r['dep'].append(t.hour * 60 + t.minute)
         r['cs'][cs] += 1
-        t = acdb.get((f.get('icao24') or '').lower())
-        if t:
-            r['ac'][t] += 1
-    return {k: {'n': v['n'], 'dur': v['dur'], 'dep': v['dep'],
-                'ac': dict(v['ac']), 'cs': dict(v['cs'])} for k, v in routes.items()}, len(seen)
+        ty = acdb.get((f.get('icao24') or '').lower())
+        if ty:
+            r['ac'][ty] += 1
+    return {d: {k: {'n': v['n'], 'dur': v['dur'], 'dep': v['dep'], 'ac': dict(v['ac']), 'cs': dict(v['cs'])}
+                for k, v in routes.items()} for d, routes in days.items()}
+
+
+def merge_airport(day, airport, routes):
+    """Remplace, dans data/daily/<jour>.json, les départs de cet aéroport par ceux qu'on vient de récupérer."""
+    p = DAILY / f'{day}.json'
+    data = json.loads(p.read_text()) if p.exists() else {'day': day, 'routes': {}}
+    data['routes'] = {k: v for k, v in data['routes'].items() if k.split('|')[1] != airport}
+    data['routes'].update(routes)
+    data['flights'] = sum(r['n'] for r in data['routes'].values())
+    data.setdefault('airports', [])
+    if airport not in data['airports']:
+        data['airports'].append(airport)
+    p.write_text(json.dumps(data, separators=(',', ':')))
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--days', type=int, default=3, help='nombre de jours passés à vérifier')
+    ap.add_argument('--days', type=int, default=2, help='(ignoré, conservé pour compatibilité)')
     ap.add_argument('--aircraft-db', default='aircraft.csv.gz')
     ap.add_argument('--keep', type=int, default=21, help='jours conservés dans data/daily')
+    ap.add_argument('--budget', type=int, default=3900, help='crédits OpenSky utilisables par passage')
     args = ap.parse_args()
 
     cid, secret = os.environ.get('OPENSKY_CLIENT_ID'), os.environ.get('OPENSKY_CLIENT_SECRET')
@@ -173,22 +190,39 @@ def main():
     DAILY.mkdir(parents=True, exist_ok=True)
 
     today = dt.datetime.now(dt.timezone.utc).date()
-    todo = [today - dt.timedelta(days=i) for i in range(1, args.days + 1)]
-    todo = [d for d in todo if not (DAILY / f'{d}.json').exists()]
-    log(f'Jours à collecter : {[str(d) for d in todo] or "aucun"}')
-    for day in todo:
+    state = json.loads(STATE.read_text()) if STATE.exists() else {}
+    if not state.get('airports') or state.get('built', '') < str(today - dt.timedelta(days=14)):
+        state = {'airports': airport_list(), 'cursor': 0, 'built': str(today)}
+        log(f'Nouvelle liste de {len(state["airports"])} aéroports')
+    apts = state['airports']
+
+    # Fenêtre : avant-hier 00:00 -> hier 23:59:59 UTC (2 partitions = 30 crédits par aéroport)
+    end = int(dt.datetime(today.year, today.month, today.day, tzinfo=dt.timezone.utc).timestamp()) - 1
+    begin = end + 1 - 2 * 86400
+    spent, done = 0, 0
+    while done < GROUP and spent + COST <= args.budget:
+        apt = apts[state['cursor'] % len(apts)]
         try:
-            flights = fetch_day(api, day)
+            flights, left = api.get('/flights/departure', airport=apt, begin=begin, end=end)
         except RuntimeError as e:
             log(f'Arrêt : {e}')
             break
-        routes, n = summarize(flights, acdb)
-        if n < MIN_FLIGHTS_PER_DAY and len(flights) < MIN_FLIGHTS_PER_DAY:
-            log(f'  {day} : seulement {n} vols exploitables, journée ignorée (pas encore traitée ?)')
-            continue
-        (DAILY / f'{day}.json').write_text(json.dumps({'day': str(day), 'flights': n, 'routes': routes},
-                                                      separators=(',', ':')))
-        log(f'  {day} : {n} vols, {len(routes)} routes enregistrées')
+        except urllib.error.HTTPError as e:
+            log(f'  {apt} : erreur HTTP {e.code}, ignoré')
+            flights, left = [], None
+        spent += COST
+        by_day = summarize(flights, acdb)
+        for day in (str(today - dt.timedelta(days=2)), str(today - dt.timedelta(days=1))):
+            merge_airport(day, apt, by_day.get(day, {}))
+        n = sum(r['n'] for d in by_day.values() for r in d.values())
+        log(f'  {apt} : {len(flights)} départs, {n} vols de ligne retenus (crédits restants : {left})')
+        state['cursor'] = (state['cursor'] + 1) % len(apts)
+        done += 1
+        if left is not None and int(left) < COST * 2:
+            log('Quota du jour presque épuisé, arrêt')
+            break
+    STATE.write_text(json.dumps(state, indent=1))
+    log(f'{done} aéroports interrogés, ~{spent} crédits utilisés, prochain départ au n°{state["cursor"]}')
 
     cutoff = today - dt.timedelta(days=args.keep)
     for p in DAILY.glob('*.json'):

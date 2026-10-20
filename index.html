@@ -23,7 +23,7 @@
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--text);}
-.app{display:flex;flex-direction:column;height:100%;}
+.app{display:flex;flex-direction:column;height:100%;max-width:720px;margin:0 auto;border-left:0.5px solid var(--border);border-right:0.5px solid var(--border);}
 .screen{display:none;flex-direction:column;flex:1;overflow:hidden;}
 .screen.active{display:flex;}
 .header{background:var(--card);padding:calc(var(--safe-top) + 14px) 16px 12px;border-bottom:0.5px solid var(--border);flex-shrink:0;}

@@ -6,10 +6,6 @@ on:
   push:
     paths: ['.github/run-now']   # modifier ce fichier relance une collecte
   workflow_dispatch:
-    inputs:
-      days:
-        description: "Nombre de jours passés à rattraper (1 à 14)"
-        default: '7'
 
 permissions:
   contents: write
@@ -39,7 +35,7 @@ jobs:
         env:
           OPENSKY_CLIENT_ID: ${{ secrets.OPENSKY_CLIENT_ID }}
           OPENSKY_CLIENT_SECRET: ${{ secrets.OPENSKY_CLIENT_SECRET }}
-        run: python3 scripts/collect.py --days "${{ github.event.inputs.days || '7' }}"
+        run: python3 scripts/collect.py
 
       - name: Construction de routes.json
         run: python3 scripts/build.py
@@ -49,7 +45,7 @@ jobs:
         run: |
           git config user.name "vols-af bot"
           git config user.email "actions@users.noreply.github.com"
-          git add data/daily routes.json airports.json meta.json
+          git add data/daily data/collect_state.json routes.json airports.json meta.json
           if git diff --cached --quiet; then echo "Rien de nouveau"; exit 0; fi
           git commit -m "Données vols $(date -u +%Y-%m-%d)"
           git push
