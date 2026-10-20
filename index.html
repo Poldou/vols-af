@@ -114,6 +114,22 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 #map-view.active{display:block;}
 #leaflet-map{width:100%;height:100%;}
 .map-note{position:absolute;z-index:500;left:10px;bottom:10px;background:rgba(0,0,0,0.7);color:#fff;font-size:12px;padding:4px 8px;border-radius:6px;}
+.apt-lbl div{display:inline-block;font-size:11px;font-weight:700;color:#fff;padding:2px 6px;border-radius:5px;white-space:nowrap;cursor:pointer;}
+#apt-sheet{display:none;flex-direction:column;position:absolute;z-index:1001;left:0;right:0;bottom:0;max-height:60%;background:var(--card);border-top-left-radius:16px;border-top-right-radius:16px;box-shadow:0 -6px 24px rgba(0,0,0,0.35);}
+.as-head{display:flex;justify-content:space-between;align-items:center;padding:14px 16px 8px;}
+.as-head b{font-size:20px;margin-right:8px;}
+.as-head span{font-size:13px;color:var(--sub);}
+.as-close{border:none;background:rgba(118,118,128,0.15);color:var(--text);width:30px;height:30px;border-radius:15px;font-size:14px;cursor:pointer;}
+.as-tabs{display:flex;gap:6px;padding:0 16px 10px;}
+.as-tabs button{flex:1;padding:8px;border:none;border-radius:9px;background:rgba(118,118,128,0.12);color:var(--sub);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;}
+.as-tabs button.on{background:var(--blue);color:#fff;}
+.as-list{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 16px 16px;}
+.as-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:0.5px solid var(--border);}
+.as-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+.as-main b{font-size:15px;}
+.as-main span{font-size:12px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.as-sb{flex-shrink:0;padding:8px 10px;border-radius:9px;background:var(--blue);color:#fff;font-size:13px;font-weight:600;text-decoration:none;}
+.as-empty{padding:16px 0;color:var(--sub);font-size:14px;}
 .leaflet-popup-content-wrapper{border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.2);}
 .map-popup{font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:13px;min-width:150px;}
 .map-popup strong{font-size:15px;font-weight:700;display:block;margin-bottom:4px;}
@@ -247,7 +263,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
     </div>
     <div class="count-banner"><strong id="count-n">0</strong><span id="count-lbl">vol possible</span></div>
     <div class="scroll-body" style="padding-top:10px" id="results-body"></div>
-    <div id="map-view"><div id="leaflet-map"></div><div class="map-note" id="map-note" style="display:none"></div></div>
+    <div id="map-view"><div id="leaflet-map"></div><div class="map-note" id="map-note" style="display:none"></div><div id="apt-sheet"></div></div>
   </div>
 
   <!-- BARRE D'ONGLETS -->
@@ -503,6 +519,7 @@ function greatCircle(lat1,lon1,lat2,lon2,n=64){
   return pts;
 }
 
+let mapLines=[], selApt=null, selTab='dep';
 function renderMap(r){
   if(!map){
     map=L.map('leaflet-map',{zoomControl:true,worldCopyJump:true}).setView([30,10],2);
@@ -513,35 +530,64 @@ function renderMap(r){
     let fails=0;
     esri.on('tileerror',()=>{if(++fails===3){map.removeLayer(esri);
       L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap'}).addTo(map);}});
+    map.on('click',closeAptSheet);
   }
-  mapLayers.forEach(l=>map.removeLayer(l)); mapLayers=[];
+  mapLayers.forEach(l=>map.removeLayer(l)); mapLayers=[]; mapLines=[];
+  closeAptSheet();
   const note=document.getElementById('map-note');
   note.style.display=r.length>MAP_MAX?'':'none';
-  note.textContent=`${MAP_MAX} premiers vols affichés sur ${r.length}`;
+  note.textContent=`${MAP_MAX} premiers vols tracés sur ${r.length} · touche un aéroport pour voir tous ses vols`;
   if(!r.length)return;
-  const bounds=[], deps=new Set();
+  const bounds=[], apts={};   // un seul point par aéroport
+  const touch=(c,role,color)=>{const o=apts[c]||(apts[c]={dep:0,arr:0,color});o[role]++;};
   r.slice(0,MAP_MAX).forEach(x=>{
     const dc=AIRPORTS[x.dep],ac=AIRPORTS[x.arr];
     if(!dc||!ac)return;
-    deps.add(x.dep);
     const color=CO_COLOR[x.co]||'#1a56db';
+    touch(x.dep,'dep',color); touch(x.arr,'arr',color);
     const popup=`<div class="map-popup"><strong>${x.dep} → ${x.arr}</strong><div class="pop-info">${esc(airlineName(x.al))}<br>${esc(x.cs)}${x.ac?' · '+esc(x.ac):''}<br>⏱ ${fd(x.dur)} · ${ft(x.depMin)}→${ft(x.arrMin)}</div><a href="${simbriefUrl(x)}" target="_blank" class="pop-sb">Ouvrir dans Simbrief ↗</a></div>`;
     const pts=greatCircle(dc[0],dc[1],ac[0],ac[1]);
     const line=L.polyline(pts,{color,weight:2,opacity:0.75}).bindPopup(popup).addTo(map);
-    const end=pts[pts.length-1];
-    const dot=L.circleMarker(end,{radius:5,fillColor:color,color:'#fff',weight:1.5,fillOpacity:1}).bindPopup(popup).addTo(map);
-    const lbl=L.marker(end,{icon:L.divIcon({className:'',html:`<div style="font-size:10px;font-weight:700;color:#fff;background:${color};padding:1px 5px;border-radius:4px;white-space:nowrap;margin-left:8px;margin-top:-8px">${x.arr}</div>`,iconAnchor:[0,0]})}).addTo(map);
-    mapLayers.push(line,dot,lbl);
-    bounds.push(pts[0],end);
+    mapLayers.push(line); mapLines.push({line,x,color});
+    bounds.push(pts[0],pts[pts.length-1]);
   });
-  deps.forEach(dep=>{
-    const c=AIRPORTS[dep];
-    const dot=L.circleMarker([c[0],c[1]],{radius:7,fillColor:'#fff',color:'#1a56db',weight:2.5,fillOpacity:1}).addTo(map);
-    const lbl=L.marker([c[0],c[1]],{icon:L.divIcon({className:'',html:`<div style="font-size:11px;font-weight:700;color:#fff;background:#1a56db;padding:2px 6px;border-radius:5px;white-space:nowrap;margin-left:10px;margin-top:-10px">${dep}</div>`,iconAnchor:[0,0]})}).addTo(map);
+  Object.entries(apts).forEach(([c,o])=>{
+    const a=AIRPORTS[c], isDep=o.dep>0, col=isDep?'#1a56db':o.color;
+    const dot=L.circleMarker([a[0],a[1]],{radius:isDep?7:5,fillColor:isDep?'#fff':col,color:isDep?'#1a56db':'#fff',weight:isDep?2.5:1.5,fillOpacity:1}).addTo(map);
+    const lbl=L.marker([a[0],a[1]],{icon:L.divIcon({className:'apt-lbl',html:`<div style="background:${col}">${c}</div>`,iconAnchor:[-8,10]})}).addTo(map);
+    const open=e=>{L.DomEvent.stopPropagation(e);openAptSheet(c);};
+    dot.on('click',open); lbl.on('click',open);
     mapLayers.push(dot,lbl);
   });
   if(bounds.length)map.fitBounds(bounds,{padding:[40,40]});
   setTimeout(()=>map.invalidateSize(),100);
+}
+
+function openAptSheet(c){
+  selApt=c;
+  const all=getFiltered(), deps=all.filter(x=>x.dep===c), arrs=all.filter(x=>x.arr===c);
+  if(!deps.length&&arrs.length)selTab='arr'; else if(!arrs.length)selTab='dep';
+  mapLines.forEach(({line,x})=>{const on=x.dep===c||x.arr===c;line.setStyle({opacity:on?0.95:0.12,weight:on?3:1.5});if(on)line.bringToFront();});
+  const a=AIRPORTS[c]||[], list=selTab==='dep'?deps:arrs;
+  document.getElementById('apt-sheet').innerHTML=`
+    <div class="as-head"><div><b>${c}</b><span>${esc(a[3]||'')}${a[2]?' · '+esc(a[2]):''}</span></div>
+      <button class="as-close" onclick="closeAptSheet()" aria-label="Fermer">✕</button></div>
+    <div class="as-tabs">
+      <button class="${selTab==='dep'?'on':''}" onclick="selTab='dep';openAptSheet('${c}')">Départs (${deps.length})</button>
+      <button class="${selTab==='arr'?'on':''}" onclick="selTab='arr';openAptSheet('${c}')">Arrivées (${arrs.length})</button>
+    </div>
+    <div class="as-list">${list.length?list.map(x=>`
+      <div class="as-row">
+        <div class="as-main"><b>${x.dep} → ${x.arr}</b><span>${esc(airlineName(x.al))} · ${esc(x.cs)}${x.ac?' · '+esc(x.ac):''}</span>
+          <span>${ft(x.depMin)} → ${ft(x.arrMin)} · ${fd(x.dur)}${x.src==='G'?'':' (estimé)'}</span></div>
+        <a href="${simbriefUrl(x)}" target="_blank" class="as-sb">Simbrief ↗</a>
+      </div>`).join(''):'<div class="as-empty">Aucun vol dans ce sens pour tes critères.</div>'}</div>`;
+  document.getElementById('apt-sheet').style.display='flex';
+}
+function closeAptSheet(){
+  selApt=null;
+  const sh=document.getElementById('apt-sheet'); if(sh)sh.style.display='none';
+  mapLines.forEach(({line})=>line.setStyle({opacity:0.75,weight:2}));
 }
 
 function setView(v){
