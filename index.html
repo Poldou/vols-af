@@ -297,7 +297,7 @@ const CO_COLOR={LH:'#b18cff',MH:'#5ec8ff',SH:'#4fe0a8'};
 const CO_LABEL={LH:'Long-courrier',MH:'Moyen-courrier',SH:'Court-courrier'};
 
 let ROUTES=[], AIRPORTS={}, AIRLINES={}, META={}, SECTORS={};
-let lastResults=[], shown=PAGE, fCo='all', fReg='all', curMode='single', curAirline='AFR';
+let lastResults=[], shown=PAGE, fCo='all', fReg='all', curMode='single', curAirline='all';
 let map, flightLayer, ivaoLayer, mapLines=[], selFlight=null, selApt=null, selTab='dep', mapR=[];
 
 // ── utilitaires ──
@@ -339,9 +339,9 @@ function onLoaded(){
   document.getElementById('loading').style.display='none';
   document.getElementById('form').style.display='';
   const sel=document.getElementById('airline');
-  const codes=Object.keys(AIRLINES).sort((x,y)=>(y==='AFR')-(x==='AFR')||AIRLINES[y][2]-AIRLINES[x][2]);
+  const codes=Object.keys(AIRLINES).sort((x,y)=>AIRLINES[y][2]-AIRLINES[x][2]);
   sel.innerHTML='<option value="all">Toutes les compagnies</option>'+codes.map(c=>`<option value="${c}">${esc(AIRLINES[c][0]||c)} (${c})</option>`).join('');
-  sel.value=AIRLINES.AFR?'AFR':'all'; curAirline=sel.value;
+  sel.value='all'; curAirline='all';
   sel.addEventListener('change',()=>{curAirline=sel.value;refreshDepList();});
   refreshDepList();
   const days=META.days||[];
