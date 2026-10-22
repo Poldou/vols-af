@@ -580,8 +580,9 @@ const uniqPos=a=>APT_POS.filter(p=>a.includes(p));
 function bboxOf(polys){let a=90,b=-90,c=180,d=-180;polys.forEach(p=>p.forEach(([la,lo])=>{a=Math.min(a,la);b=Math.max(b,la);c=Math.min(c,lo);d=Math.max(d,lo);}));return[a,b,c,d];}
 function sectorPolys(cs,center){
   if(SECTORS[cs])return SECTORS[cs].p;
+  if(SECTORS[center+'_CTR'])return SECTORS[center+'_CTR'].p;
   // un indicatif de FIR entière (LFFF_CTR) couvre tous ses sous-secteurs
-  const all=Object.values(SECTORS).filter(s=>s.t==='CTR'&&s.c===center).flatMap(s=>s.p);
+  const all=Object.entries(SECTORS).filter(([k,s])=>s.t==='CTR'&&s.c===center&&!k.includes('_MIL_')).map(([,s])=>s).flatMap(s=>s.p);
   return all.length?all:null;
 }
 function parseIvao(j){

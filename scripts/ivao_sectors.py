@@ -134,6 +134,36 @@ def poly_of(o):
     return []
 
 
+def simplify(pts, tol):
+    """Douglas-Peucker : garde la forme des secteurs en divisant le nombre de points."""
+    if len(pts) < 5:
+        return pts
+    def dist(p, a, b):
+        (y, x), (y1, x1), (y2, x2) = p, a, b
+        dx, dy = x2 - x1, y2 - y1
+        if dx == dy == 0:
+            return ((x - x1) ** 2 + (y - y1) ** 2) ** .5
+        t = max(0, min(1, ((x - x1) * dx + (y - y1) * dy) / (dx * dx + dy * dy)))
+        return ((x - x1 - t * dx) ** 2 + (y - y1 - t * dy) ** 2) ** .5
+    keep, stack = {0, len(pts) - 1}, [(0, len(pts) - 1)]
+    while stack:
+        i, j = stack.pop()
+        best, k = 0, None
+        for m in range(i + 1, j):
+            d = dist(pts[m], pts[i], pts[j])
+            if d > best:
+                best, k = d, m
+        if k is not None and best > tol:
+            keep.add(k)
+            stack += [(i, k), (k, j)]
+    return [[round(pts[i][0], 2), round(pts[i][1], 2)] for i in sorted(keep)]
+
+
+def compact(polys, tol):
+    out = [simplify(p, tol) for p in polys]
+    return [p for p in out if len(p) > 2]
+
+
 def main():
     if not KEY:
         sys.exit('IVAO_API_KEY manquant')
@@ -142,6 +172,7 @@ def main():
     for o in fetch_all('/v2/subcenters/all', mapType='regionMapPolygon'):
         polys = poly_of(o)
         cs = (o.get('composePosition') or o.get('callsign') or '').upper()
+        polys = compact(polys, 0.03)
         if polys and cs:
             by_cs[cs] = {'p': polys, 'c': (o.get('centerId') or cs.split('_')[0]).upper(), 't': 'CTR'}
             n_sub += 1
@@ -155,7 +186,7 @@ def main():
         pos = (o.get('position') or '').upper()
         if pos not in ('APP', 'DEP', 'CTR', 'FSS'):
             continue
-        polys = poly_of(o)
+        polys = compact(poly_of(o), 0.015)
         cs = (o.get('composePosition') or o.get('callsign') or '').upper()
         if polys and cs and cs not in by_cs:
             by_cs[cs] = {'p': polys, 'c': (o.get('airportId') or cs.split('_')[0]).upper(), 't': pos}
