@@ -498,8 +498,10 @@ function drawFlights(list,focus){
     const color=CO_COLOR[x.co]||'#5ec8ff';
     (apts[x.dep]=apts[x.dep]||{dep:0,arr:0}).dep++; (apts[x.arr]=apts[x.arr]||{dep:0,arr:0}).arr++;
     const pts=greatCircle(dc[0],dc[1],ac[0],ac[1]);
-    const line=L.polyline(pts,{color,weight:1.6,opacity:.7}).bindPopup(()=>popupHtml(x)).addTo(flightLayer);
-    mapLines.push({line,x,pts}); bounds.push(pts[0],pts[pts.length-1]);
+    const line=L.polyline(pts,{color,weight:1.6,opacity:.7,interactive:false}).bindPopup(()=>popupHtml(x),{autoPan:false}).addTo(flightLayer);
+    // trait invisible plus large pour viser facilement la route
+    L.polyline(pts,{weight:14,opacity:0}).on('click',e=>{L.DomEvent.stopPropagation(e);pickFromMap(x);}).addTo(flightLayer);
+    mapLines.push({line,x,pts,color}); bounds.push(pts[0],pts[pts.length-1]);
   });
   Object.entries(apts).forEach(([c,o])=>{
     const a=AIRPORTS[c], main=focus?c===focus:o.dep>0;
@@ -511,11 +513,15 @@ function drawFlights(list,focus){
   highlight();
   return bounds;
 }
+let glow=null;
 function highlight(){
+  if(glow){flightLayer.removeLayer(glow);glow=null;}
+  const m=selFlight&&mapLines.find(l=>keyOf(l.x)===selFlight);
+  if(m)glow=L.polyline(m.pts,{color:m.color,weight:10,opacity:.28,interactive:false}).addTo(flightLayer);
   mapLines.forEach(({line,x})=>{
     const on=selFlight?keyOf(x)===selFlight:selApt?(selTab==='dep'?x.dep===selApt:x.arr===selApt):true;
     const dim=selFlight||selApt;
-    line.setStyle({weight:on&&dim?3.2:1.6,opacity:on?(dim?1:.7):.18});
+    line.setStyle({weight:on&&selFlight?3.6:on&&dim?2.6:1.6,opacity:on?(dim?1:.7):.14});
     if(on&&dim)line.bringToFront();
   });
 }
@@ -526,11 +532,28 @@ function drawAll(fit){
   const b=drawFlights(mapR.slice(0,MAP_MAX),null);
   if(fit&&b.length)map.fitBounds(b,{...pads(),maxZoom:7});
 }
+// clic sur une route de la carte : vol mis en évidence dans la liste et sur la carte
+function pickFromMap(x){
+  selFlight=keyOf(x);
+  markInLists(x);
+  focusFlight(x);
+}
+function markInLists(x){
+  const i=mapR.indexOf(x);
+  if(i>=shown){shown=Math.ceil((i+1)/PAGE)*PAGE;renderList(mapR);}
+  ['#list','#apt'].forEach(sel=>{
+    let hit=null;
+    document.querySelectorAll(sel+' .strip').forEach(el=>{const on=+el.dataset.i===i;el.classList.toggle('sel',on);if(on)hit=el;});
+    if(hit)hit.scrollIntoView({block:'center',behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth'});
+  });
+  const p=document.getElementById('panel');
+  if(!wide()&&p.classList.contains('searched')&&!selApt)p.classList.add('low');
+}
 function focusFlight(x){
   let m=mapLines.find(l=>keyOf(l.x)===keyOf(x));
   if(!m){drawFlights([...mapR.slice(0,MAP_MAX),x],selApt);m=mapLines.find(l=>keyOf(l.x)===keyOf(x));}
   highlight();
-  if(m){map.fitBounds(L.latLngBounds(m.pts),{...pads(),maxZoom:8});map.once('moveend',()=>m.line.openPopup(m.pts[Math.floor(m.pts.length/2)]));}
+  if(m){map.fitBounds(L.latLngBounds(m.pts),{...pads(),maxZoom:8});setTimeout(()=>m.line.openPopup(m.pts[Math.floor(m.pts.length/2)]),450);}
 }
 
 // ── panneau aéroport ──
