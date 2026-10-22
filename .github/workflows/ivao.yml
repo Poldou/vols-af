@@ -4,7 +4,7 @@ on:
   schedule:
     - cron: '41 4 * * 1'      # chaque lundi : les limites des secteurs changent rarement
   push:
-    paths: ['.github/run-ivao', 'scripts/ivao_sectors.py']
+    paths: ['.github/run-ivao']   # modifier ce fichier relance le téléchargement
   workflow_dispatch:
 
 permissions:

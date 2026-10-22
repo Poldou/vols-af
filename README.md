@@ -19,6 +19,13 @@ Secrets à créer dans *Settings → Secrets and variables → Actions* :
 |---|---|
 | `OPENSKY_CLIENT_ID` | `clientId` du fichier credentials.json OpenSky |
 | `OPENSKY_CLIENT_SECRET` | `clientSecret` du même fichier |
+| `IVAO_API_KEY` | clé d'API IVAO (limites des secteurs de contrôle) |
+
+## Contrôle IVAO
+
+L'app lit en direct le flux public des contrôleurs IVAO connectés (rafraîchi chaque minute) et signale les vols
+qui partent, arrivent ou traversent une zone contrôlée. Les limites des secteurs viennent de `data/ivao_sectors.json`,
+téléchargé chaque lundi par `.github/workflows/ivao.yml` avec la clé d'API (pour forcer : modifier `.github/run-ivao`).
 
 ## Sources
 
