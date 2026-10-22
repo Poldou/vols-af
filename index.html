@@ -481,6 +481,7 @@ function initMap(){
   map.createPane('ivaoLbl').style.zIndex=640;
   flightLayer=L.layerGroup().addTo(map);
   map.on('click',()=>{if(selApt)closeApt(true);});
+  map.on('zoomend',()=>requestAnimationFrame(declutter));
 }
 function pads(){
   if(wide())return{paddingTopLeft:[440,40],paddingBottomRight:[selApt?420:40,40]};
@@ -493,25 +494,40 @@ function popupHtml(x){
 function drawFlights(list,focus){
   flightLayer.clearLayers(); mapLines=[];
   const bounds=[], apts={};
+  // un aéroport peut apparaître dans deux « copies » du monde quand une route passe l'antiméridien (Pacifique)
+  const at=(c,role,ll)=>{const o=apts[c]||(apts[c]={dep:0,arr:0,pos:{}});o[role]++;o.pos[Math.round(ll[1]/360)]=ll;};
   list.forEach(x=>{
     const dc=AIRPORTS[x.dep],ac=AIRPORTS[x.arr]; if(!dc||!ac)return;
     const color=CO_COLOR[x.co]||'#5ec8ff';
-    (apts[x.dep]=apts[x.dep]||{dep:0,arr:0}).dep++; (apts[x.arr]=apts[x.arr]||{dep:0,arr:0}).arr++;
     const pts=greatCircle(dc[0],dc[1],ac[0],ac[1]);
+    at(x.dep,'dep',pts[0]); at(x.arr,'arr',pts[pts.length-1]);
     const line=L.polyline(pts,{color,weight:1.6,opacity:.7,interactive:false}).bindPopup(()=>popupHtml(x),{autoPan:false}).addTo(flightLayer);
     // trait invisible plus large pour viser facilement la route
     L.polyline(pts,{weight:14,opacity:0}).on('click',e=>{L.DomEvent.stopPropagation(e);pickFromMap(x);}).addTo(flightLayer);
     mapLines.push({line,x,pts,color}); bounds.push(pts[0],pts[pts.length-1]);
   });
   Object.entries(apts).forEach(([c,o])=>{
-    const a=AIRPORTS[c], main=focus?c===focus:o.dep>0;
-    const dot=L.circleMarker([a[0],a[1]],{radius:main?6:4,fillColor:main?'#5ec8ff':'#0a1424',color:main?'#0a1424':'#dbe6f3',weight:main?2:1.5,fillOpacity:1}).addTo(flightLayer);
-    const lbl=L.marker([a[0],a[1]],{icon:L.divIcon({className:'apt-lbl'+(main?' main':''),html:`<div>${c}</div>`,iconAnchor:[-7,9]})}).addTo(flightLayer);
-    const open=e=>{L.DomEvent.stopPropagation(e);selectApt(c,true);};
-    dot.on('click',open); lbl.on('click',open);
+    const main=focus?c===focus:o.dep>0, rank=(main?1e6:0)+o.dep+o.arr;
+    Object.values(o.pos).forEach(ll=>{
+      const dot=L.circleMarker(ll,{radius:main?6:4,fillColor:main?'#5ec8ff':'#0a1424',color:main?'#0a1424':'#dbe6f3',weight:main?2:1.5,fillOpacity:1}).addTo(flightLayer);
+      const lbl=L.marker(ll,{icon:L.divIcon({className:'apt-lbl'+(main?' main':''),html:`<div data-rank="${rank}">${c}</div>`,iconAnchor:[-7,9]})}).addTo(flightLayer);
+      const open=e=>{L.DomEvent.stopPropagation(e);selectApt(c,true);};
+      dot.on('click',open); lbl.on('click',open);
+    });
   });
   highlight();
+  requestAnimationFrame(declutter);
   return bounds;
+}
+// étiquettes qui se chevauchent : on garde la plus importante, les autres réapparaissent en zoomant (le point reste visible)
+function declutter(){
+  const els=[...document.querySelectorAll('.apt-lbl div')].map(el=>({el,r:+el.dataset.rank,b:el.getBoundingClientRect()}))
+    .sort((a,b)=>b.r-a.r), kept=[];
+  els.forEach(o=>{
+    const hit=kept.some(k=>!(o.b.right<k.left-2||o.b.left>k.right+2||o.b.bottom<k.top-1||o.b.top>k.bottom+1));
+    o.el.style.visibility=hit?'hidden':'';
+    if(!hit)kept.push(o.b);
+  });
 }
 let glow=null;
 function highlight(){
