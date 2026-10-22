@@ -137,6 +137,8 @@ select.chip option{background:var(--deck);color:var(--text);}
 .detail .warn{color:var(--atc);margin:6px 0;}
 .detail .warn b{display:block;}
 .sb{display:inline-block;margin-top:6px;padding:7px 12px;border-radius:6px;background:var(--route);color:#04213a;font-weight:600;text-decoration:none;font-size:14px;}
+.acts{display:flex;gap:8px;flex-wrap:wrap;}
+.sb.ghost{background:none;border:1px solid var(--route);color:var(--route);cursor:pointer;}
 .more{display:block;width:100%;margin-top:6px;padding:10px;border:1px dashed var(--rule);background:none;border-radius:6px;color:var(--route);cursor:pointer;}
 .empty{padding:30px 10px;text-align:center;color:var(--sub);}
 .loading{padding:22px 18px;color:var(--sub);}
@@ -427,7 +429,7 @@ function strip(x,i){
       <p>${esc(aptName(x.dep))} → ${esc(aptName(x.arr))}</p>
       <p>${CO_LABEL[x.co]||''} · ${srcText(x)}${x.hdep?` · part d'habitude à ${utcToParis(x.hdep)} (Paris)`:''}</p>
       ${ivaoWarn(x)}
-      <a class="sb" href="${simbriefUrl(x)}" target="_blank" rel="noopener">Préparer dans Simbrief</a>
+      <div class="acts"><button class="sb ghost" data-map="${i}">Voir sur la carte</button><a class="sb" href="${simbriefUrl(x)}" target="_blank" rel="noopener">Préparer dans Simbrief</a></div>
     </div>
   </div>`;
 }
@@ -436,6 +438,15 @@ function renderList(r){
   if(!r.length){el.innerHTML='<div class="empty">Aucun vol ne tombe dans ce créneau.<br>Élargis l\'heure d\'arrivée, choisis une autre compagnie ou pars de partout.</div>';return;}
   el.innerHTML=r.slice(0,shown).map((x,i)=>strip(x,i)).join('')+(r.length>shown?`<button class="more" onclick="shown+=PAGE;renderList(getFiltered())">Voir ${Math.min(PAGE,r.length-shown)} vols de plus (${r.length-shown} restants)</button>`:'');
 }
+function showOnMap(x){
+  selFlight=keyOf(x);
+  if(!wide()){document.getElementById('panel').classList.add('low');if(selApt)closeApt(false);}
+  setTimeout(()=>focusFlight(x),wide()?0:280);
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-map]'); if(!b)return;
+  e.stopPropagation(); showOnMap(mapR[+b.dataset.map]);
+},true);
 document.getElementById('list').addEventListener('click',e=>{
   if(e.target.closest('a'))return;
   const s=e.target.closest('.strip'); if(!s)return;
@@ -519,7 +530,7 @@ function focusFlight(x){
   let m=mapLines.find(l=>keyOf(l.x)===keyOf(x));
   if(!m){drawFlights([...mapR.slice(0,MAP_MAX),x],selApt);m=mapLines.find(l=>keyOf(l.x)===keyOf(x));}
   highlight();
-  if(m)map.fitBounds(L.latLngBounds(m.pts),{...pads(),maxZoom:8});
+  if(m){map.fitBounds(L.latLngBounds(m.pts),{...pads(),maxZoom:8});map.once('moveend',()=>m.line.openPopup(m.pts[Math.floor(m.pts.length/2)]));}
 }
 
 // ── panneau aéroport ──
