@@ -525,56 +525,69 @@ function greatCircle(lat1,lon1,lat2,lon2,n=64){
   return pts;
 }
 
-let mapLines=[], selApt=null, selTab='dep';
-function renderMap(r){
-  if(!map){
-    map=L.map('leaflet-map',{zoomControl:true,worldCopyJump:true}).setView([30,10],2);
-    map.attributionControl.setPrefix(false);
-    // Fond Esri sans clé d'API ; bascule sur OpenStreetMap si les tuiles ne chargent pas
-    const esri=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
-      {maxZoom:16,attribution:'Esri, HERE, Garmin, © OpenStreetMap'}).addTo(map);
-    let fails=0;
-    esri.on('tileerror',()=>{if(++fails===3){map.removeLayer(esri);
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap'}).addTo(map);}});
-    map.on('click',closeAptSheet);
-  }
+let mapLines=[], selApt=null, selTab='dep', mapR=[];
+function initMap(){
+  map=L.map('leaflet-map',{zoomControl:true,worldCopyJump:true}).setView([30,10],2);
+  map.attributionControl.setPrefix(false);
+  // Fond Esri sans clé d'API ; bascule sur OpenStreetMap si les tuiles ne chargent pas
+  const esri=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+    {maxZoom:16,attribution:'Esri, HERE, Garmin, © OpenStreetMap'}).addTo(map);
+  let fails=0;
+  esri.on('tileerror',()=>{if(++fails===3){map.removeLayer(esri);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap'}).addTo(map);}});
+  map.on('click',()=>{if(selApt)closeAptSheet();});
+}
+// Trace des vols ; focus = aéroport sélectionné (on ne garde alors que ses vols et les aéroports reliés)
+function drawFlights(list,focus){
   mapLayers.forEach(l=>map.removeLayer(l)); mapLayers=[]; mapLines=[];
-  closeAptSheet();
-  const note=document.getElementById('map-note');
-  note.style.display=r.length>MAP_MAX?'':'none';
-  note.textContent=`${MAP_MAX} premiers vols tracés sur ${r.length} · touche un aéroport pour voir tous ses vols`;
-  if(!r.length)return;
-  const bounds=[], apts={};   // un seul point par aéroport
+  const bounds=[], apts={};
   const touch=(c,role,color)=>{const o=apts[c]||(apts[c]={dep:0,arr:0,color});o[role]++;};
-  r.slice(0,MAP_MAX).forEach(x=>{
+  list.forEach(x=>{
     const dc=AIRPORTS[x.dep],ac=AIRPORTS[x.arr];
     if(!dc||!ac)return;
     const color=CO_COLOR[x.co]||'#1a56db';
     touch(x.dep,'dep',color); touch(x.arr,'arr',color);
     const popup=`<div class="map-popup"><strong>${x.dep} → ${x.arr}</strong><div class="pop-info">${esc(airlineName(x.al))}<br>${esc(x.cs)}${x.ac?' · '+esc(x.ac):''}<br>⏱ ${fd(x.dur)} · ${ft(x.depMin)}→${ft(x.arrMin)}</div><a href="${simbriefUrl(x)}" target="_blank" class="pop-sb">Ouvrir dans Simbrief ↗</a></div>`;
     const pts=greatCircle(dc[0],dc[1],ac[0],ac[1]);
-    const line=L.polyline(pts,{color,weight:2,opacity:0.75}).bindPopup(popup).addTo(map);
+    const line=L.polyline(pts,{color,weight:focus?2.5:2,opacity:focus?0.9:0.75}).bindPopup(popup).addTo(map);
     mapLayers.push(line); mapLines.push({line,x,color});
     bounds.push(pts[0],pts[pts.length-1]);
   });
   Object.entries(apts).forEach(([c,o])=>{
-    const a=AIRPORTS[c], isDep=o.dep>0, col=isDep?'#1a56db':o.color;
-    const dot=L.circleMarker([a[0],a[1]],{radius:isDep?7:5,fillColor:isDep?'#fff':col,color:isDep?'#1a56db':'#fff',weight:isDep?2.5:1.5,fillOpacity:1}).addTo(map);
+    const a=AIRPORTS[c], main=focus?c===focus:o.dep>0, col=main?'#1a56db':o.color;
+    const dot=L.circleMarker([a[0],a[1]],{radius:main?7:5,fillColor:main?'#fff':col,color:main?'#1a56db':'#fff',weight:main?2.5:1.5,fillOpacity:1}).addTo(map);
     const lbl=L.marker([a[0],a[1]],{icon:L.divIcon({className:'apt-lbl',html:`<div style="background:${col}">${c}</div>`,iconAnchor:[-8,10]})}).addTo(map);
-    const open=e=>{L.DomEvent.stopPropagation(e);openAptSheet(c);};
+    const open=e=>{L.DomEvent.stopPropagation(e);selectApt(c);};
     dot.on('click',open); lbl.on('click',open);
     mapLayers.push(dot,lbl);
   });
+  return bounds;
+}
+function renderMap(r){
+  if(!map)initMap();
+  mapR=r; selApt=null;
+  const sh=document.getElementById('apt-sheet'); if(sh)sh.style.display='none';
+  const note=document.getElementById('map-note');
+  note.style.display=r.length>MAP_MAX?'':'none';
+  note.textContent=`${MAP_MAX} premiers vols tracés sur ${r.length} · touche un aéroport pour voir tous ses vols`;
+  const bounds=drawFlights(r.slice(0,MAP_MAX),null);
   if(bounds.length)map.fitBounds(bounds,{padding:[40,40]});
   setTimeout(()=>map.invalidateSize(),100);
 }
-
-function openAptSheet(c){
+function selectApt(c){
+  const deps=mapR.filter(x=>x.dep===c), arrs=mapR.filter(x=>x.arr===c);
+  selTab=deps.length?'dep':'arr';
   selApt=c;
-  const all=getFiltered(), deps=all.filter(x=>x.dep===c), arrs=all.filter(x=>x.arr===c);
-  if(!deps.length&&arrs.length)selTab='arr'; else if(!arrs.length)selTab='dep';
-  mapLines.forEach(({line,x})=>{const on=x.dep===c||x.arr===c;line.setStyle({opacity:on?0.95:0.12,weight:on?3:1.5});if(on)line.bringToFront();});
+  document.getElementById('map-note').style.display='none';
+  const bounds=drawFlights([...deps,...arrs],c);
+  // laisse de la place au panneau en bas
+  if(bounds.length)map.fitBounds(bounds,{paddingTopLeft:[30,30],paddingBottomRight:[30,Math.round(document.getElementById('map-view').clientHeight*0.55)],maxZoom:7});
+  openAptSheet(c);
+}
+function openAptSheet(c){
+  const deps=mapR.filter(x=>x.dep===c), arrs=mapR.filter(x=>x.arr===c);
   const a=AIRPORTS[c]||[], list=selTab==='dep'?deps:arrs;
+  mapLines.forEach(({line,x})=>{const on=selTab==='dep'?x.dep===c:x.arr===c;line.setStyle({opacity:on?0.95:0.3,weight:on?3:1.5});if(on)line.bringToFront();});
   document.getElementById('apt-sheet').innerHTML=`
     <div class="as-head"><div><b>${c}</b><span>${esc(a[3]||'')}${a[2]?' · '+esc(a[2]):''}</span></div>
       <button class="as-close" onclick="closeAptSheet()" aria-label="Fermer">✕</button></div>
@@ -584,17 +597,13 @@ function openAptSheet(c){
     </div>
     <div class="as-list">${list.length?list.map(x=>`
       <div class="as-row">
-        <div class="as-main"><b>${x.dep} → ${x.arr}</b><span>${esc(airlineName(x.al))} · ${esc(x.cs)}${x.ac?' · '+esc(x.ac):''}</span>
+        <div class="as-main"><b>${x.dep} → ${x.arr}</b><span>${esc(airlineName(x.al))} · ${esc(x.cs)}${x.fn&&x.fn.slice(2)!==x.cs.slice(3)?' ('+esc(x.fn)+')':''}${x.ac?' · '+esc(x.ac):''}</span>
           <span>${ft(x.depMin)} → ${ft(x.arrMin)} · ${fd(x.dur)}${x.src==='G'?'':' (estimé)'}</span></div>
         <a href="${simbriefUrl(x)}" target="_blank" class="as-sb">Simbrief ↗</a>
       </div>`).join(''):'<div class="as-empty">Aucun vol dans ce sens pour tes critères.</div>'}</div>`;
   document.getElementById('apt-sheet').style.display='flex';
 }
-function closeAptSheet(){
-  selApt=null;
-  const sh=document.getElementById('apt-sheet'); if(sh)sh.style.display='none';
-  mapLines.forEach(({line})=>line.setStyle({opacity:0.75,weight:2}));
-}
+function closeAptSheet(){ renderMap(mapR); }
 
 function setView(v){
   curView=v;
