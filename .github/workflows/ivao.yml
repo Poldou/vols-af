@@ -1,0 +1,38 @@
+name: Secteurs IVAO
+
+on:
+  schedule:
+    - cron: '41 4 * * 1'      # chaque lundi : les limites des secteurs changent rarement
+  push:
+    paths: ['.github/run-ivao', 'scripts/ivao_sectors.py']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-flights
+  cancel-in-progress: false
+
+jobs:
+  sectors:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Limites des secteurs
+        env:
+          IVAO_API_KEY: ${{ secrets.IVAO_API_KEY }}
+        run: python3 scripts/ivao_sectors.py
+      - name: Publication
+        run: |
+          git config user.name "vols-af bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/ivao_sectors.json
+          if git diff --cached --quiet; then echo "Rien de nouveau"; exit 0; fi
+          git commit -m "Secteurs IVAO $(date -u +%Y-%m-%d)"
+          git pull --rebase
+          git push

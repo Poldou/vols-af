@@ -6,389 +6,331 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Planificateur Vol">
-<meta name="theme-color" content="#1a56db">
+<meta name="theme-color" content="#0a1424">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
 <title>Planificateur Vol</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <style>
-:root {
-  color-scheme:light dark;
-  --blue:#1a56db; --blue-light:#dbeafe;
-  --green:#16a34a; --green-light:#dcfce7;
-  --bg:#f2f2f7; --card:#ffffff; --text:#1c1c1e; --sub:#6b6b6b;
-  --border:rgba(0,0,0,0.1);
+/* Carte de nuit façon carte en route ; les résultats sont des strips de contrôle */
+:root{
+  color-scheme:dark;
+  --ink:#0a1424;        /* fond, eau */
+  --deck:#101c2e;       /* panneaux */
+  --deck-2:#16243a;     /* champs, strips */
+  --rule:#26364f;       /* séparations */
+  --text:#dbe6f3;
+  --sub:#8296b0;
+  --route:#5ec8ff;      /* trait de route, accent */
+  --atc:#ffb020;        /* contrôle IVAO */
+  --lh:#b18cff; --mh:#5ec8ff; --sh:#4fe0a8;
   --safe-top:env(safe-area-inset-top,0px); --safe-bot:env(safe-area-inset-bottom,0px);
-}
-@media(prefers-color-scheme:dark){
-  :root{--bg:#1c1c1e;--card:#2c2c2e;--text:#fff;--sub:#ababab;--border:rgba(255,255,255,0.1);--blue-light:#1e3a8a;--green-light:#14532d;}
+  --cond:'Barlow Condensed',system-ui,sans-serif;
+  --body:'Barlow',system-ui,-apple-system,sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--text);}
-.app{display:flex;flex-direction:column;height:100%;max-width:720px;margin:0 auto;border-left:0.5px solid var(--border);border-right:0.5px solid var(--border);}
-.screen{display:none;flex-direction:column;flex:1;overflow:hidden;}
-.screen.active{display:flex;}
-.header{background:var(--card);padding:calc(var(--safe-top) + 14px) 16px 12px;border-bottom:0.5px solid var(--border);flex-shrink:0;}
-.header-title{font-size:28px;font-weight:700;letter-spacing:-0.5px;}
-.header-sub{font-size:14px;color:var(--sub);margin-top:2px;}
-.header-back{display:flex;align-items:center;gap:4px;color:var(--blue);font-size:17px;background:none;border:none;padding:0;cursor:pointer;font-family:inherit;margin-bottom:6px;}
-.header-back svg{width:10px;height:17px;}
-.scroll-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 16px 24px;}
-.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:12px;color:var(--sub);font-size:15px;text-align:center;}
-.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin 0.8s linear infinite;}
-@keyframes spin{to{transform:rotate(360deg);}}
-.section-label{font-size:12px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:0.05em;margin:18px 0 8px;}
-.section-label:first-child{margin-top:0;}
-.seg{display:flex;background:rgba(118,118,128,0.12);border-radius:10px;padding:2px;gap:2px;margin-bottom:4px;}
-.seg-btn{flex:1;padding:8px 4px;border:none;background:transparent;font-size:14px;font-weight:500;color:var(--sub);border-radius:8px;cursor:pointer;font-family:inherit;}
-.seg-btn.on{background:var(--card);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,0.15);}
-.field-group{background:var(--card);border-radius:12px;overflow:hidden;}
-.field{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:0.5px solid var(--border);}
-.field:last-child{border-bottom:none;}
-.field-icon{font-size:20px;width:26px;text-align:center;flex-shrink:0;}
-.field-inner{flex:1;min-width:0;}
-.field-label{font-size:11px;color:var(--sub);margin-bottom:2px;font-weight:500;}
-.field-hint{font-size:12px;color:var(--sub);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.field select,.field input{width:100%;border:none;background:transparent;font-size:16px;color:var(--text);font-family:inherit;outline:none;-webkit-appearance:auto;}
-.field input[type=text]{text-transform:uppercase;}
-.field input[type=text]::placeholder{text-transform:none;}
-#dep-menu{display:none;max-height:280px;overflow-y:auto;-webkit-overflow-scrolling:touch;border-top:0.5px solid var(--border);}
-.dep-opt{display:flex;align-items:baseline;gap:10px;padding:10px 16px;cursor:pointer;border-bottom:0.5px solid var(--border);}
-.dep-opt:active,.dep-opt:hover{background:rgba(118,118,128,0.12);}
-.dep-opt b{font-size:15px;min-width:38px;}
-.dep-opt span{flex:1;font-size:13px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.dep-opt em{font-style:normal;font-size:11px;color:var(--sub);}
-.dep-more{padding:10px 16px;font-size:12px;color:var(--sub);}
-.field select option{background:var(--card);color:var(--text);}
-.field-row{display:grid;grid-template-columns:1fr 1fr;}
-.field-row .field{border-right:0.5px solid var(--border);}
-.field-row .field:last-child{border-right:none;}
-.search-btn{width:100%;margin-top:24px;padding:16px;background:var(--blue);border:none;border-radius:14px;font-size:17px;font-weight:600;color:#fff;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;}
-.search-btn:active{opacity:0.85;transform:scale(0.98);}
-.data-badge{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;background:var(--green-light);border-radius:8px;font-size:12px;color:var(--green);font-weight:600;margin-top:16px;}
-.data-note{font-size:12px;color:var(--sub);margin-top:8px;line-height:1.5;}
-.pills-row{display:flex;gap:6px;overflow-x:auto;padding:10px 16px;-webkit-overflow-scrolling:touch;scrollbar-width:none;border-bottom:0.5px solid var(--border);background:var(--card);flex-shrink:0;}
-.pills-row::-webkit-scrollbar{display:none;}
-.pill{flex-shrink:0;padding:6px 13px;border-radius:20px;background:rgba(118,118,128,0.12);font-size:13px;font-weight:500;color:var(--sub);cursor:pointer;white-space:nowrap;border:none;font-family:inherit;}
-.pill.on{background:var(--blue);color:#fff;}
-.pill.on-lh{background:#7c3aed;color:#fff;}
-.pill.on-mh{background:#0891b2;color:#fff;}
-.pill.on-sh{background:#059669;color:#fff;}
-.count-banner{display:flex;align-items:baseline;gap:8px;padding:10px 16px 0;flex-shrink:0;}
-.count-banner strong{font-size:22px;font-weight:700;}
-.count-banner span{font-size:13px;color:var(--sub);}
-.view-toggle{display:flex;margin:8px 16px 0;background:rgba(118,118,128,0.12);border-radius:10px;padding:2px;gap:2px;flex-shrink:0;}
-.vtab{flex:1;padding:7px;border:none;background:transparent;font-size:13px;font-weight:500;color:var(--sub);border-radius:8px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:5px;}
-.vtab.on{background:var(--card);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,0.12);}
-.fcard{background:var(--card);border-radius:14px;padding:14px 16px;margin-bottom:10px;border-left:4px solid #7c3aed;}
-.fcard.mh{border-left-color:#0891b2;}
-.fcard.sh{border-left-color:#059669;}
-.fcard-al{font-size:12px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:0.04em;}
-.fcard-dest{font-size:17px;font-weight:700;margin-top:2px;}
-.fcard-city{font-size:13px;color:var(--sub);margin-top:1px;}
-.fcard-num{font-size:13px;color:var(--sub);margin-top:4px;}
-.fcard-badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px;margin-bottom:10px;}
-.badge{display:inline-block;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;}
-.b-lh{background:#ede9fe;color:#5b21b6;} .b-mh{background:#cffafe;color:#164e63;} .b-sh{background:#d1fae5;color:#064e3b;}
-.b-reg{background:var(--blue-light);color:#1e3a8a;} .b-dom{background:#fee2e2;color:#7f1d1d;}
-.b-afr{background:#fef3c7;color:#78350f;} .b-asi{background:#d1fae5;color:#064e3b;}
-.b-eur{background:#ede9fe;color:#4c1d95;} .b-fr{background:#f0f9ff;color:#0c4a6e;} .b-me{background:#fdf4ff;color:#6b21a8;}
-.b-oc{background:#ecfeff;color:#155e75;} .b-src{background:rgba(118,118,128,0.12);color:var(--sub);}
-@media(prefers-color-scheme:dark){
-  .b-lh{background:#4c1d95;color:#e9d5ff;} .b-mh{background:#164e63;color:#cffafe;} .b-sh{background:#064e3b;color:#d1fae5;}
-  .b-reg{background:#1e3a8a;color:#bfdbfe;} .b-dom{background:#7f1d1d;color:#fecaca;} .b-afr{background:#78350f;color:#fde68a;}
-  .b-asi{background:#064e3b;color:#a7f3d0;} .b-eur{background:#3b0764;color:#e9d5ff;} .b-fr{background:#0c4a6e;color:#e0f2fe;} .b-me{background:#4a044e;color:#f0abfc;}
-  .b-oc{background:#164e63;color:#cffafe;}
-}
-.fcard-times{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
-.tblock{text-align:center;}
-.tval{font-size:26px;font-weight:700;line-height:1;letter-spacing:-0.5px;}
-.tlbl{font-size:10px;color:var(--sub);margin-top:2px;}
-.tarrow{color:var(--sub);font-size:14px;flex:1;text-align:center;}
-.tdur{text-align:center;border-left:1px solid var(--border);padding-left:12px;}
-.tdur strong{display:block;font-size:17px;font-weight:700;}
-.tdur span{font-size:10px;color:var(--sub);}
-.real-time{font-size:12px;color:var(--sub);margin-bottom:12px;}
-.sb-link{display:flex;align-items:center;justify-content:center;padding:9px;border-radius:10px;background:rgba(118,118,128,0.1);font-size:14px;font-weight:600;color:var(--blue);text-decoration:none;}
-.more-btn{width:100%;padding:12px;border:none;border-radius:12px;background:rgba(118,118,128,0.12);color:var(--blue);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;}
-.no-res{text-align:center;padding:50px 20px;color:var(--sub);font-size:15px;line-height:1.6;}
-#map-view{flex:1;display:none;position:relative;}
-#map-view.active{display:block;}
-#leaflet-map{width:100%;height:100%;}
-.map-note{position:absolute;z-index:500;left:10px;bottom:10px;background:rgba(0,0,0,0.7);color:#fff;font-size:12px;padding:4px 8px;border-radius:6px;}
-.apt-lbl div{display:inline-block;font-size:11px;font-weight:700;color:#fff;padding:2px 6px;border-radius:5px;white-space:nowrap;cursor:pointer;}
-#apt-sheet{display:none;flex-direction:column;position:absolute;z-index:1001;left:0;right:0;bottom:0;max-height:60%;background:var(--card);border-top-left-radius:16px;border-top-right-radius:16px;box-shadow:0 -6px 24px rgba(0,0,0,0.35);}
-.as-head{display:flex;justify-content:space-between;align-items:center;padding:14px 16px 8px;}
-.as-head b{font-size:20px;margin-right:8px;}
-.as-head span{font-size:13px;color:var(--sub);}
-.as-close{border:none;background:rgba(118,118,128,0.15);color:var(--text);width:30px;height:30px;border-radius:15px;font-size:14px;cursor:pointer;}
-.as-tabs{display:flex;gap:6px;padding:0 16px 10px;}
-.as-tabs button{flex:1;padding:8px;border:none;border-radius:9px;background:rgba(118,118,128,0.12);color:var(--sub);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;}
-.as-tabs button.on{background:var(--blue);color:#fff;}
-.as-list{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 16px 16px;}
-.as-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:0.5px solid var(--border);}
-.as-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
-.as-main b{font-size:15px;}
-.as-main span{font-size:12px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.as-sb{flex-shrink:0;padding:8px 10px;border-radius:9px;background:var(--blue);color:#fff;font-size:13px;font-weight:600;text-decoration:none;}
-.as-empty{padding:16px 0;color:var(--sub);font-size:14px;}
-.leaflet-popup-content-wrapper{border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.2);}
-.map-popup{font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:13px;min-width:150px;}
-.map-popup strong{font-size:15px;font-weight:700;display:block;margin-bottom:4px;}
-.map-popup .pop-info{color:#666;font-size:12px;line-height:1.6;}
-.map-popup .pop-sb{display:block;margin-top:8px;padding:6px 10px;background:#1a56db;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;text-align:center;font-size:13px;}
-.tab-bar{display:flex;background:var(--card);border-top:0.5px solid var(--border);padding-bottom:var(--safe-bot);flex-shrink:0;}
-.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 4px 6px;border:none;background:none;cursor:pointer;font-family:inherit;}
-.tab-icon{font-size:22px;color:var(--sub);}
-.tab-label{font-size:10px;font-weight:500;color:var(--sub);}
-.tab.on .tab-icon,.tab.on .tab-label{color:var(--blue);}
+html,body{height:100%;overflow:hidden;background:var(--ink);color:var(--text);font:15px/1.4 var(--body);}
+button,input,select{font:inherit;color:inherit;}
+:focus-visible{outline:2px solid var(--route);outline-offset:2px;}
+#map{position:fixed;inset:0;background:var(--ink);}
+.leaflet-container{background:var(--ink);font-family:var(--body);}
+.leaflet-control-attribution{background:rgba(10,20,36,.7)!important;color:var(--sub)!important;font-size:10px;}
+.leaflet-control-attribution a{color:var(--sub)!important;}
+.leaflet-bar a{background:var(--deck)!important;color:var(--text)!important;border-color:var(--rule)!important;}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--deck);color:var(--text);border:1px solid var(--rule);box-shadow:0 10px 30px rgba(0,0,0,.5);}
+.leaflet-popup-content-wrapper{border-radius:10px;}
+.leaflet-container a.leaflet-popup-close-button{color:var(--sub);}
 
-/* Grand écran (PC, iPad) : pleine largeur, liste en grille, panneau aéroport à droite de la carte */
+/* ── panneau principal ── */
+#panel{position:fixed;z-index:1000;display:flex;flex-direction:column;background:rgba(16,28,46,.94);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--rule);box-shadow:0 20px 50px rgba(0,0,0,.45);}
+.brand{display:flex;align-items:center;gap:10px;padding:16px 18px 6px;}
+.brand img{width:28px;height:28px;border-radius:7px;}
+.brand h1{font:700 24px/1 var(--cond);letter-spacing:.3px;}
+.brand .upd{margin-left:auto;font-size:12px;color:var(--sub);text-align:right;}
+.handle{display:none;}
+
+.form{padding:8px 18px 14px;display:grid;grid-template-columns:minmax(0,1fr);gap:10px;}
+.row>*{min-width:0;}
+.fld input[type=time]{min-width:0;}
+.row{display:grid;gap:8px;}
+.row.three{grid-template-columns:repeat(3,minmax(0,1fr));}
+.fld{position:relative;background:var(--deck-2);border:1px solid var(--rule);border-radius:8px;padding:7px 10px 8px;}
+.fld label{display:block;font-size:12px;color:var(--sub);margin-bottom:1px;}
+.fld input,.fld select{width:100%;background:transparent;border:none;outline:none;font:600 19px/1.2 var(--cond);letter-spacing:.3px;}
+.fld select{font:500 16px/1.3 var(--body);-webkit-appearance:none;appearance:none;cursor:pointer;}
+.fld select option{background:var(--deck);}
+.fld input[type=time]::-webkit-calendar-picker-indicator{filter:invert(.7);}
+.fld:focus-within{border-color:var(--route);}
+.fld .hint{font-size:12px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#dep{text-transform:uppercase;}
+.seg{display:flex;background:var(--deck-2);border:1px solid var(--rule);border-radius:8px;padding:3px;}
+.seg button{flex:1;border:none;background:none;padding:6px;border-radius:6px;color:var(--sub);cursor:pointer;font-weight:500;}
+.seg button.on{background:var(--rule);color:var(--text);}
+#dep-menu{display:none;position:absolute;left:-1px;right:-1px;top:calc(100% + 4px);z-index:5;max-height:300px;overflow-y:auto;
+  background:var(--deck);border:1px solid var(--rule);border-radius:8px;box-shadow:0 14px 30px rgba(0,0,0,.5);}
+.dep-opt{display:flex;align-items:baseline;gap:10px;padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--rule);}
+.dep-opt:hover{background:var(--deck-2);}
+.dep-opt b{font:600 17px var(--cond);min-width:38px;}
+.dep-opt span{flex:1;font-size:13px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dep-opt em{font-style:normal;font-size:12px;color:var(--sub);}
+.dep-more{padding:8px 12px;font-size:12px;color:var(--sub);}
+.go{border:none;border-radius:8px;background:var(--route);color:#04213a;font-weight:600;font-size:16px;padding:11px;cursor:pointer;}
+.go:active{transform:scale(.98);}
+
+/* résumé replié de la recherche */
+.summary{display:none;align-items:center;gap:10px;margin:4px 18px 10px;padding:9px 12px;background:var(--deck-2);border:1px solid var(--rule);border-radius:8px;cursor:pointer;}
+.summary b{font:600 19px var(--cond);}
+.summary span{font-size:13px;color:var(--sub);}
+.summary .edit{margin-left:auto;color:var(--route);font-weight:600;font-size:14px;}
+#panel.searched .form{display:none;}
+#panel.searched .summary{display:flex;}
+#panel.searched.editing .form{display:grid;}
+#panel.searched.editing .summary{display:none;}
+
+/* barre de résultats */
+.rhead{display:none;padding:0 18px 8px;border-bottom:1px solid var(--rule);}
+#panel.searched .rhead{display:block;}
+.count{display:flex;align-items:baseline;gap:6px;margin-bottom:8px;}
+.count b{font:700 28px/1 var(--cond);}
+.count span{color:var(--sub);font-size:14px;}
+.count .ivst{margin-left:auto;font-size:12px;color:var(--sub);}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;}
+.chips::-webkit-scrollbar{display:none;}
+.chip{flex-shrink:0;border:1px solid var(--rule);background:none;border-radius:999px;padding:4px 11px;font-size:13px;color:var(--sub);cursor:pointer;white-space:nowrap;}
+.chip.on{color:var(--text);border-color:var(--text);}
+.chip[data-v=LH].on{color:var(--lh);border-color:var(--lh);}
+.chip[data-v=MH].on{color:var(--mh);border-color:var(--mh);}
+.chip[data-v=SH].on{color:var(--sh);border-color:var(--sh);}
+.chip.atc.on{color:var(--ink);background:var(--atc);border-color:var(--atc);}
+select.chip{-webkit-appearance:none;appearance:none;background:none;padding-right:22px;
+  background-image:linear-gradient(45deg,transparent 50%,var(--sub) 50%),linear-gradient(135deg,var(--sub) 50%,transparent 50%);
+  background-position:calc(100% - 12px) 55%,calc(100% - 8px) 55%;background-size:4px 4px;background-repeat:no-repeat;}
+select.chip option{background:var(--deck);color:var(--text);}
+.chips+.chips{margin-top:6px;}
+
+/* strips */
+#list{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 12px 16px;display:none;}
+#panel.searched #list{display:block;}
+.strip{display:grid;grid-template-columns:6px 1fr auto;background:var(--deck-2);border:1px solid var(--rule);border-radius:4px;margin-bottom:6px;cursor:pointer;overflow:hidden;}
+.strip:hover{border-color:#36506f;}
+.strip.sel{border-color:var(--route);box-shadow:0 0 0 1px var(--route) inset;}
+.strip .tab{background:var(--mh);}
+.strip.LH .tab{background:var(--lh);} .strip.SH .tab{background:var(--sh);}
+.strip .main{padding:7px 10px;min-width:0;border-right:1px dashed var(--rule);}
+.strip .cs{font:700 20px/1.05 var(--cond);letter-spacing:.4px;display:flex;align-items:center;gap:6px;}
+.strip .cs .atc{width:8px;height:8px;border-radius:50%;background:var(--atc);box-shadow:0 0 0 3px rgba(255,176,32,.2);}
+.strip .rt{font:600 15px var(--cond);color:var(--route);letter-spacing:.3px;}
+.strip .meta{font-size:12px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.strip .times{display:grid;grid-template-rows:1fr 1fr;text-align:right;min-width:78px;}
+.strip .times div{padding:4px 10px;font:600 17px/1.1 var(--cond);}
+.strip .times div+div{border-top:1px dashed var(--rule);}
+.strip .times small{display:block;font:500 11px var(--body);color:var(--sub);}
+.detail{grid-column:1/-1;display:none;padding:8px 12px 12px 16px;border-top:1px solid var(--rule);font-size:13px;color:var(--sub);}
+.strip.sel .detail{display:block;}
+.detail p{margin-bottom:4px;}
+.detail .warn{color:var(--atc);margin:6px 0;}
+.detail .warn b{display:block;}
+.sb{display:inline-block;margin-top:6px;padding:7px 12px;border-radius:6px;background:var(--route);color:#04213a;font-weight:600;text-decoration:none;font-size:14px;}
+.more{display:block;width:100%;margin-top:6px;padding:10px;border:1px dashed var(--rule);background:none;border-radius:6px;color:var(--route);cursor:pointer;}
+.empty{padding:30px 10px;text-align:center;color:var(--sub);}
+.loading{padding:22px 18px;color:var(--sub);}
+
+/* ── panneau aéroport ── */
+#apt{position:fixed;z-index:1001;display:none;flex-direction:column;background:rgba(16,28,46,.96);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border:1px solid var(--rule);box-shadow:0 20px 50px rgba(0,0,0,.45);}
+.ah{display:flex;align-items:flex-start;gap:10px;padding:14px 16px 8px;}
+.ah b{font:700 30px/1 var(--cond);}
+.ah span{display:block;font-size:13px;color:var(--sub);}
+.ah .atcline{color:var(--atc);font-size:13px;margin-top:3px;}
+.x{margin-left:auto;flex-shrink:0;width:30px;height:30px;border-radius:50%;border:1px solid var(--rule);background:none;color:var(--text);cursor:pointer;}
+.atabs{display:flex;gap:6px;padding:0 16px 10px;}
+.atabs button{flex:1;padding:7px;border:1px solid var(--rule);border-radius:6px;background:none;color:var(--sub);cursor:pointer;font-weight:600;}
+.atabs button.on{color:var(--ink);background:var(--route);border-color:var(--route);}
+#apt .alist{overflow-y:auto;padding:0 12px 14px;flex:1;}
+
+/* ── commandes flottantes de la carte ── */
+.mapctl{position:fixed;z-index:999;display:flex;gap:8px;align-items:center;}
+.fab{display:flex;align-items:center;gap:7px;border:1px solid var(--rule);background:rgba(16,28,46,.92);backdrop-filter:blur(10px);
+  padding:8px 13px;border-radius:999px;cursor:pointer;font-weight:600;font-size:14px;color:var(--text);}
+.fab .dot{width:9px;height:9px;border-radius:50%;border:2px solid var(--atc);}
+.fab.on{border-color:var(--atc);}
+.fab.on .dot{background:var(--atc);}
+.note{position:fixed;z-index:998;font-size:12px;color:var(--sub);background:rgba(10,20,36,.8);padding:4px 9px;border-radius:6px;display:none;}
+
+/* étiquettes sur la carte */
+.apt-lbl div{display:inline-block;font:600 13px/1 var(--cond);letter-spacing:.4px;color:var(--text);background:rgba(10,20,36,.85);border:1px solid var(--rule);padding:2px 5px 3px;border-radius:3px;white-space:nowrap;cursor:pointer;}
+.apt-lbl.main div{background:var(--route);color:#04213a;border-color:var(--route);}
+.ivao-lbl div{display:inline-block;white-space:nowrap;font:600 12px/1 var(--cond);letter-spacing:.4px;color:var(--atc);background:rgba(10,20,36,.85);border:1px solid rgba(255,176,32,.5);padding:2px 5px 3px;border-radius:3px;}
+.pop b{font:700 19px var(--cond);display:block;}
+.pop p{font-size:13px;color:var(--sub);margin:2px 0;}
+.pop .warn{color:var(--atc);}
+.pop .sb{margin-top:8px;}
+
+/* ── grand écran : panneau à gauche, aéroport à droite ── */
 @media (min-width:900px){
-  .app{max-width:none;border:none;}
-  #s-search .scroll-body>*{max-width:720px;margin-left:auto;margin-right:auto;}
-  .header,.pills-row,.count-banner{padding-left:max(16px,calc((100% - 1400px)/2));padding-right:max(16px,calc((100% - 1400px)/2));}
-  .view-toggle{max-width:480px;width:calc(100% - 32px);margin:8px auto 0;}
-  #results-body .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px;max-width:1400px;margin:0 auto;}
-  #results-body .cards .fcard{margin-bottom:0;}
-  #results-body .more-btn{display:block;max-width:400px;margin:14px auto;}
-  #apt-sheet{left:auto;top:12px;right:12px;bottom:12px;width:400px;max-height:none;border-radius:16px;box-shadow:0 6px 30px rgba(0,0,0,0.4);}
-  .tab-bar{justify-content:center;}
-  .tab-bar .tab{flex:0 0 200px;}
+  #panel{top:14px;left:14px;bottom:14px;width:400px;border-radius:14px;}
+  #panel:not(.searched){bottom:auto;}
+  #apt{top:14px;right:14px;bottom:14px;width:380px;border-radius:14px;}
+  .mapctl{top:14px;right:14px;}
+  body.apt-open .mapctl{right:408px;}
+  .note{left:428px;bottom:14px;}
+  .leaflet-top.leaflet-left{left:414px;}
 }
-.ivao-warn{margin:10px 0 0;padding:8px 10px;border-radius:10px;background:rgba(245,158,11,0.15);color:#b45309;font-size:12px;line-height:1.4;}
-.ivao-tag{display:block;font-size:11px;color:#d97706;font-weight:600;white-space:normal !important;}
-@media(prefers-color-scheme:dark){.ivao-warn{color:#fbbf24;}.ivao-tag{color:#fbbf24;}}
-.count-banner{flex-wrap:wrap;}
-.ctl-btn{margin-left:auto;border:none;border-radius:14px;padding:5px 10px;font-size:12px;font-family:inherit;background:rgba(118,118,128,0.12);color:var(--sub);cursor:pointer;}
-.ctl-btn.on{background:#f59e0b;color:#fff;}
-.ivao-status{width:100%;font-size:11px;color:var(--sub);text-align:right;}
-.ivao-map-btn{border:2px solid rgba(0,0,0,0.2);background:#fff;color:#333;border-radius:6px;padding:6px 10px;font:600 13px -apple-system,sans-serif;cursor:pointer;}
-.ivao-map-btn.on{background:#f59e0b;color:#fff;}
-.ivao-lbl div{display:inline-block;white-space:nowrap;font-size:10px;font-weight:700;color:#fff;background:#d97706;padding:1px 5px;border-radius:4px;opacity:.9;}
+/* ── téléphone : panneau en bas, déroulable ── */
+@media (max-width:899px){
+  #panel{left:0;right:0;bottom:0;max-height:calc(100% - var(--safe-top) - 60px);border-radius:16px 16px 0 0;padding-bottom:var(--safe-bot);border-bottom:none;}
+  .handle{display:block;width:100%;height:22px;border:none;background:none;cursor:pointer;position:relative;flex-shrink:0;}
+  .handle::after{content:'';position:absolute;left:50%;top:9px;width:40px;height:4px;margin-left:-20px;border-radius:2px;background:var(--rule);}
+  .brand{padding-top:2px;}
+  #panel.searched{height:70%;}
+  #panel.searched.low{height:auto;}
+  #panel.searched.low #list,#panel.searched.low .chips{display:none;}
+  #panel.searched.low .rhead{border-bottom:none;}
+  #apt{left:0;right:0;bottom:0;height:62%;border-radius:16px 16px 0 0;padding-bottom:var(--safe-bot);}
+  .mapctl{top:calc(var(--safe-top) + 10px);right:10px;}
+  .note{left:10px;top:calc(var(--safe-top) + 12px);}
+  .leaflet-top.leaflet-left{top:calc(var(--safe-top) + 44px);}
+}
+@media (prefers-reduced-motion:no-preference){
+  #panel,#apt{transition:height .25s ease;}
+}
 </style>
 </head>
 <body>
-<div class="app">
+<div id="map"></div>
 
-  <!-- RECHERCHE -->
-  <div class="screen active" id="s-search">
-    <div class="header">
-      <div class="header-title">✈️ Planificateur Vol</div>
-      <div class="header-sub">Vols réels, toutes compagnies</div>
-    </div>
-    <div class="scroll-body">
-      <div class="loading" id="loading-state">
-        <div class="spinner"></div>Chargement des vols…
-      </div>
-      <div id="search-form" style="display:none">
-        <div class="section-label">Compagnie</div>
-        <div class="field-group">
-          <div class="field">
-            <div class="field-icon">🏷️</div>
-            <div class="field-inner">
-              <div class="field-label">Compagnie aérienne</div>
-              <select id="airline"></select>
-            </div>
-          </div>
-        </div>
-
-        <div class="section-label">Mode de départ</div>
-        <div class="seg">
-          <button class="seg-btn on" id="mode-single" onclick="setMode('single')">Départ fixe</button>
-          <button class="seg-btn" id="mode-multi" onclick="setMode('multi')">Toutes bases</button>
-        </div>
-        <div id="dep-section">
-          <div class="section-label">Aéroport de départ</div>
-          <div class="field-group">
-            <div class="field">
-              <div class="field-icon">📍</div>
-              <div class="field-inner">
-                <div class="field-label">Départ depuis (code ou ville)</div>
-                <input type="text" id="dep" value="CDG" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Code, ville ou nom">
-                <div class="field-hint" id="dep-hint"></div>
-              </div>
-            </div>
-            <div id="dep-menu"></div>
-          </div>
-        </div>
-
-        <div class="section-label">Horaires (heure de Paris)</div>
-        <div class="field-group">
-          <div class="field">
-            <div class="field-icon">🛫</div>
-            <div class="field-inner">
-              <div class="field-label">Heure de départ</div>
-              <input type="time" id="depTime">
-            </div>
-          </div>
-          <div class="field-row">
-            <div class="field">
-              <div class="field-icon">🕐</div>
-              <div class="field-inner"><div class="field-label">Arrivée de</div><input type="time" id="arrFrom"></div>
-            </div>
-            <div class="field">
-              <div class="field-icon">🕑</div>
-              <div class="field-inner"><div class="field-label">jusqu'à</div><input type="time" id="arrTo"></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="section-label">Type de vol</div>
-        <div class="field-group">
-          <div class="field">
-            <div class="field-icon">🌍</div>
-            <div class="field-inner">
-              <div class="field-label">Courrier</div>
-              <select id="courrier">
-                <option value="all">Tous (LH + MH + SH)</option>
-                <option value="LH">Long-courrier</option>
-                <option value="MH">Moyen-courrier</option>
-                <option value="SH">Court-courrier</option>
-              </select>
-            </div>
-          </div>
-        </div>
-        <button class="search-btn" onclick="doSearch()">🔍 Rechercher</button>
-        <div class="data-badge" id="data-badge"></div>
-        <div class="data-note" id="data-note"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- RÉSULTATS -->
-  <div class="screen" id="s-results">
-    <div class="header">
-      <button class="header-back" onclick="showScreen('search')">
-        <svg viewBox="0 0 10 17" fill="none"><path d="M8.5 1.5L1.5 8.5L8.5 15.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        Retour
-      </button>
-      <div class="header-title" id="rh-title">Résultats</div>
-      <div class="header-sub" id="rh-sub"></div>
-    </div>
-    <div class="pills-row" id="co-pills">
-      <button class="pill on" data-v="all" onclick="setPill(this,'co')">Tous</button>
-      <button class="pill" data-v="LH" onclick="setPill(this,'co')">Long-courrier</button>
-      <button class="pill" data-v="MH" onclick="setPill(this,'co')">Moyen-courrier</button>
-      <button class="pill" data-v="SH" onclick="setPill(this,'co')">Court-courrier</button>
-    </div>
-    <div class="pills-row" id="reg-pills">
-      <button class="pill on" data-v="all" onclick="setPill(this,'reg')">Toutes régions</button>
-      <button class="pill" data-v="ameriques" onclick="setPill(this,'reg')">Amériques</button>
-      <button class="pill" data-v="asie" onclick="setPill(this,'reg')">Asie</button>
-      <button class="pill" data-v="afrique" onclick="setPill(this,'reg')">Afrique</button>
-      <button class="pill" data-v="europe" onclick="setPill(this,'reg')">Europe</button>
-      <button class="pill" data-v="moyen-orient" onclick="setPill(this,'reg')">M-Orient</button>
-      <button class="pill" data-v="oceanie" onclick="setPill(this,'reg')">Océanie</button>
-      <button class="pill" data-v="dom" onclick="setPill(this,'reg')">DOM-TOM</button>
-      <button class="pill" data-v="france" onclick="setPill(this,'reg')">France</button>
-    </div>
-    <div class="view-toggle">
-      <button class="vtab on" id="vtab-list" onclick="setView('list')">📋 Liste</button>
-      <button class="vtab" id="vtab-map" onclick="setView('map')">🗺️ Carte</button>
-    </div>
-    <div class="count-banner"><strong id="count-n">0</strong><span id="count-lbl">vol possible</span>
-      <button class="ctl-btn" id="ctl-btn" onclick="hideCtl=!hideCtl;this.classList.toggle('on',hideCtl);renderResults()" title="Contrôleurs IVAO en ligne">🎧 Masquer les vols contrôlés</button>
-      <span class="ivao-status" id="ivao-status"></span></div>
-    <div class="scroll-body" style="padding-top:10px" id="results-body"></div>
-    <div id="map-view"><div id="leaflet-map"></div><div class="map-note" id="map-note" style="display:none"></div><div id="apt-sheet"></div></div>
-  </div>
-
-  <!-- BARRE D'ONGLETS -->
-  <div class="tab-bar">
-    <button class="tab on" id="tab-search" onclick="showScreen('search')">
-      <span class="tab-icon">🔍</span><span class="tab-label">Recherche</span>
-    </button>
-    <button class="tab" id="tab-results" onclick="showScreen('results')">
-      <span class="tab-icon">📋</span><span class="tab-label">Résultats</span>
-    </button>
-  </div>
+<div class="mapctl">
+  <button class="fab" id="ivao-btn" aria-pressed="false"><span class="dot"></span>Contrôle IVAO</button>
 </div>
+<div class="note" id="note"></div>
+
+<aside id="panel">
+  <button class="handle" id="handle" aria-label="Agrandir ou réduire"></button>
+  <div class="brand">
+    <img src="icons/icon-192.png" alt="">
+    <h1>Planificateur Vol</h1>
+    <div class="upd" id="upd"></div>
+  </div>
+  <div class="loading" id="loading">Chargement des vols…</div>
+
+  <form class="form" id="form" style="display:none" onsubmit="doSearch();return false">
+    <div class="fld">
+      <label for="airline">Compagnie</label>
+      <select id="airline"></select>
+    </div>
+    <div class="seg" role="group" aria-label="Départ">
+      <button type="button" class="on" id="mode-single" onclick="setMode('single')">Depuis un aéroport</button>
+      <button type="button" id="mode-multi" onclick="setMode('multi')">Depuis partout</button>
+    </div>
+    <div class="fld" id="dep-fld">
+      <label for="dep">Aéroport de départ</label>
+      <input type="text" id="dep" value="CDG" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Code ou ville">
+      <div class="hint" id="dep-hint"></div>
+      <div id="dep-menu"></div>
+    </div>
+    <div class="row three">
+      <div class="fld"><label for="depTime">Départ</label><input type="time" id="depTime"></div>
+      <div class="fld"><label for="arrFrom">Arrivée dès</label><input type="time" id="arrFrom"></div>
+      <div class="fld"><label for="arrTo">jusqu'à</label><input type="time" id="arrTo"></div>
+    </div>
+    <button class="go" type="submit">Trouver les vols</button>
+  </form>
+
+  <div class="summary" id="summary" onclick="editSearch()">
+    <div><b id="sum-title"></b><br><span id="sum-sub"></span></div>
+    <span class="edit">Modifier</span>
+  </div>
+
+  <div class="rhead">
+    <div class="count"><b id="count-n">0</b><span id="count-lbl">vols</span><span class="ivst" id="ivao-status"></span></div>
+    <div class="chips" id="co-chips">
+      <button class="chip on" data-v="all">Tous</button>
+      <button class="chip" data-v="LH">Long-courrier</button>
+      <button class="chip" data-v="MH">Moyen-courrier</button>
+      <button class="chip" data-v="SH">Court-courrier</button>
+    </div>
+    <div class="chips">
+      <select class="chip" id="reg" aria-label="Région">
+        <option value="all">Toutes régions</option><option value="france">France</option><option value="europe">Europe</option>
+        <option value="ameriques">Amériques</option><option value="afrique">Afrique</option><option value="moyen-orient">Moyen-Orient</option>
+        <option value="asie">Asie</option><option value="oceanie">Océanie</option><option value="dom">DOM-TOM</option>
+      </select>
+      <button class="chip atc" id="ctl-btn">Sans contrôle IVAO</button>
+    </div>
+  </div>
+  <div id="list"></div>
+</aside>
+
+<aside id="apt"></aside>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
-const PAGE = 150, MAP_MAX = 400;
-const CO_COLOR  = {LH:'#7c3aed',MH:'#0891b2',SH:'#059669'};
-const CO_LABELS = {LH:'Long-courrier',MH:'Moyen-courrier',SH:'Court-courrier'};
-const REG_LABELS= {ameriques:'Amériques',asie:'Asie',afrique:'Afrique',europe:'Europe',dom:'DOM-TOM',france:'France','moyen-orient':'Moyen-Orient',oceanie:'Océanie'};
-const REG_BADGE = {ameriques:'b-reg',asie:'b-asi',afrique:'b-afr',europe:'b-eur',dom:'b-dom',france:'b-fr','moyen-orient':'b-me',oceanie:'b-oc'};
-const CO_BADGE  = {LH:'b-lh',MH:'b-mh',SH:'b-sh'};
+const PAGE=120, MAP_MAX=400;
+const CO_COLOR={LH:'#b18cff',MH:'#5ec8ff',SH:'#4fe0a8'};
+const CO_LABEL={LH:'Long-courrier',MH:'Moyen-courrier',SH:'Court-courrier'};
 
-let ROUTES=[], AIRPORTS={}, AIRLINES={}, META={};
-let lastResults=[], shown=PAGE, fCo='all', fReg='all', curMode='single', curView='list', curAirline='AFR';
-let map=null, mapLayers=[];
+let ROUTES=[], AIRPORTS={}, AIRLINES={}, META={}, SECTORS={};
+let lastResults=[], shown=PAGE, fCo='all', fReg='all', curMode='single', curAirline='AFR';
+let map, flightLayer, ivaoLayer, mapLines=[], selFlight=null, selApt=null, selTab='dep', mapR=[];
 
-// ── utilitaires horaires ──
+// ── utilitaires ──
 function nextHour(){const n=new Date(),h=n.getMinutes()===0?n.getHours():n.getHours()+1;return String(h%24).padStart(2,'0')+':00';}
 function pt(s){const[h,m]=s.split(':').map(Number);return h*60+m;}
 function addM(b,m){return((b+m)%1440+1440)%1440;}
 function ft(t){return String(Math.floor(t/60)%24).padStart(2,'0')+':'+String(t%60).padStart(2,'0');}
 function fd(m){return Math.floor(m/60)+'h'+(m%60?String(m%60).padStart(2,'0'):'');}
 function inW(a,f,t){return f<=t?a>=f&&a<=t:a>=f||a<=t;}
-const PARIS = new Intl.DateTimeFormat('fr-FR',{timeZone:'Europe/Paris',hour:'2-digit',minute:'2-digit'});
-function utcToParis(hhmm){
-  if(!hhmm) return '';
-  const [h,m]=hhmm.split(':').map(Number), d=new Date();
-  d.setUTCHours(h,m,0,0);
-  return PARIS.format(d);
-}
-function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
-function aptName(code){const a=AIRPORTS[code];return a?(a[3]||a[2]):'';}
-function airlineName(code){return (AIRLINES[code]&&AIRLINES[code][0])||code;}
+const PARIS=new Intl.DateTimeFormat('fr-FR',{timeZone:'Europe/Paris',hour:'2-digit',minute:'2-digit'});
+function utcToParis(h){if(!h)return'';const[a,b]=h.split(':').map(Number),d=new Date();d.setUTCHours(a,b,0,0);return PARIS.format(d);}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function aptName(c){const a=AIRPORTS[c];return a?(a[3]||a[2]):'';}
+function airlineName(c){return(AIRLINES[c]&&AIRLINES[c][0])||c;}
+const wide=()=>matchMedia('(min-width:900px)').matches;
+const keyOf=x=>x.al+'|'+x.dep+'|'+x.arr+'|'+x.cs;
 
-// ── chargement ──
-// Lecture directe dans le dépôt (à jour dès le commit du robot), sinon fichiers servis par GitHub Pages
+// ── chargement : dépôt GitHub d'abord (à jour dès le commit du robot), sinon fichiers du site ──
 const RAW='https://raw.githubusercontent.com/Poldou/vols-af/main/';
 async function getJSON(name,required){
   const t='?t='+Date.now();
-  for(const base of [RAW,'']){
-    try{const x=await fetch(base+name+t);if(x.ok)return await x.json();}catch(e){}
-  }
+  for(const base of [RAW,'']){try{const x=await fetch(base+name+t);if(x.ok)return await x.json();}catch(e){}}
   if(required)throw new Error(name+' introuvable');
   return {};
 }
 async function loadData(){
+  initMap();
   try{
-    const [r,a,m]=await Promise.all([getJSON('routes.json',true),getJSON('airports.json',true),getJSON('meta.json',false)]);
-    const cols=r.cols;
-    ROUTES=r.rows.map(row=>Object.fromEntries(cols.map((c,i)=>[c,row[i]])));
-    AIRLINES=r.airlines||{}; AIRPORTS=a; META=m;
+    const [r,a,m,s]=await Promise.all([getJSON('routes.json',true),getJSON('airports.json',true),getJSON('meta.json',false),getJSON('data/ivao_sectors.json',false)]);
+    ROUTES=r.rows.map(row=>Object.fromEntries(r.cols.map((c,i)=>[c,row[i]])));
+    AIRLINES=r.airlines||{}; AIRPORTS=a; META=m; SECTORS=s||{};
     onLoaded();
     loadIvao(); setInterval(()=>{if(!document.hidden)loadIvao();},60000);
   }catch(e){
-    document.getElementById('loading-state').innerHTML='<div style="font-size:40px">⚠️</div><div>Impossible de charger les données<br><small>'+esc(e.message)+'</small></div>';
+    document.getElementById('loading').textContent='Les données de vols ne se chargent pas ('+e.message+'). Vérifie la connexion puis recharge la page.';
   }
 }
-
 function onLoaded(){
-  document.getElementById('loading-state').style.display='none';
-  document.getElementById('search-form').style.display='';
+  document.getElementById('loading').style.display='none';
+  document.getElementById('form').style.display='';
   const sel=document.getElementById('airline');
   const codes=Object.keys(AIRLINES).sort((x,y)=>(y==='AFR')-(x==='AFR')||AIRLINES[y][2]-AIRLINES[x][2]);
-  sel.innerHTML='<option value="all">Toutes les compagnies</option>'+codes.map(c=>
-    `<option value="${c}">${esc(AIRLINES[c][0]||c)} (${c}) · ${AIRLINES[c][2]} routes</option>`).join('');
-  sel.value=AIRLINES.AFR?'AFR':'all';
-  curAirline=sel.value;
+  sel.innerHTML='<option value="all">Toutes les compagnies</option>'+codes.map(c=>`<option value="${c}">${esc(AIRLINES[c][0]||c)} (${c})</option>`).join('');
+  sel.value=AIRLINES.AFR?'AFR':'all'; curAirline=sel.value;
   sel.addEventListener('change',()=>{curAirline=sel.value;refreshDepList();});
   refreshDepList();
-
-  const nAl=Object.keys(AIRLINES).length;
-  document.getElementById('data-badge').textContent=`✅ ${ROUTES.length} routes · ${nAl} compagnie${nAl>1?'s':''}`;
   const days=META.days||[];
-  document.getElementById('data-note').textContent = days.length
-    ? `Vols observés du ${days[0]} au ${days[days.length-1]} (OpenSky). Temps de bloc estimé = temps observé + ${META.offset_min} min. Compagnies importées : horaires officiels.`
-    : 'Compagnies importées : horaires officiels. Les autres compagnies apparaîtront après la première collecte OpenSky.';
-
-  const nh=nextHour();
-  document.getElementById('depTime').value=nh;
-  updateArrWindows(nh);
+  document.getElementById('upd').innerHTML=`${ROUTES.length.toLocaleString('fr-FR')} routes${days.length?'<br>vols du '+days[days.length-1].split('-').reverse().slice(0,2).join('/'):''}`;
+  const nh=nextHour(); document.getElementById('depTime').value=nh; updateArrWindows(nh);
 }
 
-// ── liste des aéroports de départ : tout afficher au clic, filtrer en tapant ──
+// ── aéroport de départ : liste complète au clic, filtrée à la frappe ──
 let DEP_COUNTS={}, DEP_ORDER=[];
-const norm=t=>String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+const norm=t=>String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
 function refreshDepList(){
   DEP_COUNTS={};
   ROUTES.forEach(r=>{if(curAirline==='all'||r.al===curAirline)DEP_COUNTS[r.dep]=(DEP_COUNTS[r.dep]||0)+1;});
@@ -396,144 +338,114 @@ function refreshDepList(){
   const inp=document.getElementById('dep');
   if(!DEP_COUNTS[inp.value.trim().toUpperCase()]&&DEP_ORDER.length)inp.value=DEP_ORDER.includes('CDG')?'CDG':DEP_ORDER[0];
   depHint();
-  if(document.getElementById('dep-menu').style.display==='block')showDepMenu(false);
 }
 function showDepMenu(filter){
   const q=norm(document.getElementById('dep').value.trim());
   let list=DEP_ORDER;
-  if(filter&&q){
-    const code=[],other=[];
-    DEP_ORDER.forEach(c=>{
-      const a=AIRPORTS[c]||[], lc=c.toLowerCase();
-      if(lc.startsWith(q))code.push(c);
-      else if(norm(a[3]).includes(q)||norm(a[2]).includes(q))other.push(c);
-    });
-    list=code.concat(other);
-  }
-  const menu=document.getElementById('dep-menu');
-  const shown=list.slice(0,2000);
-  menu.innerHTML=shown.length?shown.map(c=>{const a=AIRPORTS[c]||[];return `<div class="dep-opt" data-c="${c}"><b>${c}</b><span>${esc(a[3]||a[2]||'')}${a[3]&&a[2]?' · '+esc(a[2]):''}</span><em>${DEP_COUNTS[c]}</em></div>`;}).join('')
-    +(list.length>shown.length?`<div class="dep-more">${list.length-shown.length} autres : tape le code ou la ville</div>`:'')
-    :'<div class="dep-more">Aucun aéroport ne correspond</div>';
+  if(filter&&q){const a1=[],a2=[];DEP_ORDER.forEach(c=>{const a=AIRPORTS[c]||[];if(c.toLowerCase().startsWith(q))a1.push(c);else if(norm(a[3]).includes(q)||norm(a[2]).includes(q))a2.push(c);});list=a1.concat(a2);}
+  const s=list.slice(0,2000), menu=document.getElementById('dep-menu');
+  menu.innerHTML=s.length?s.map(c=>{const a=AIRPORTS[c]||[];return `<div class="dep-opt" data-c="${c}"><b>${c}</b><span>${esc(a[3]||a[2]||'')}</span><em>${DEP_COUNTS[c]}</em></div>`;}).join('')
+    +(list.length>s.length?`<div class="dep-more">${list.length-s.length} autres : tape le code ou la ville</div>`:''):'<div class="dep-more">Aucun aéroport ne correspond</div>';
   menu.style.display='block';
 }
 function hideDepMenu(){document.getElementById('dep-menu').style.display='none';}
-function pickDep(c){const inp=document.getElementById('dep');inp.value=c;depHint();hideDepMenu();inp.blur();}
-function depHint(){
-  const c=document.getElementById('dep').value.trim().toUpperCase(), a=AIRPORTS[c];
-  document.getElementById('dep-hint').textContent=a?`${a[2]}${a[3]?' — '+a[3]:''}`:(c?'Aéroport inconnu dans les données':'');
-}
+function pickDep(c){const i=document.getElementById('dep');i.value=c;depHint();hideDepMenu();i.blur();}
+function depHint(){const c=document.getElementById('dep').value.trim().toUpperCase(),a=AIRPORTS[c];document.getElementById('dep-hint').textContent=a?a[2]:(c?'Aucun vol connu au départ de ce code':'');}
 (()=>{
-  const inp=document.getElementById('dep'), menu=document.getElementById('dep-menu');
+  const inp=document.getElementById('dep'),menu=document.getElementById('dep-menu');
   inp.addEventListener('focus',()=>{inp.select();showDepMenu(false);});
   inp.addEventListener('input',()=>{depHint();showDepMenu(true);});
   inp.addEventListener('blur',()=>setTimeout(hideDepMenu,150));
-  inp.addEventListener('keydown',e=>{
-    if(e.key==='Enter'){const f=menu.querySelector('.dep-opt');if(f)pickDep(f.dataset.c);e.preventDefault();}
-    if(e.key==='Escape')hideDepMenu();
-  });
-  menu.addEventListener('mousedown',e=>e.preventDefault());   // garde le focus pendant le clic
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter'){const f=menu.querySelector('.dep-opt');if(f)pickDep(f.dataset.c);e.preventDefault();}if(e.key==='Escape')hideDepMenu();});
+  menu.addEventListener('mousedown',e=>e.preventDefault());
   menu.addEventListener('click',e=>{const o=e.target.closest('.dep-opt');if(o)pickDep(o.dataset.c);});
 })();
-
-function updateArrWindows(t){
-  const m=pt(t);
-  document.getElementById('arrFrom').value=ft(addM(m,60));
-  document.getElementById('arrTo').value=ft(addM(m,120));
-}
+function updateArrWindows(t){const m=pt(t);document.getElementById('arrFrom').value=ft(addM(m,60));document.getElementById('arrTo').value=ft(addM(m,120));}
 ['change','input'].forEach(ev=>{
   document.getElementById('depTime').addEventListener(ev,function(){if(this.value)updateArrWindows(this.value);});
   document.getElementById('arrFrom').addEventListener(ev,function(){if(this.value)document.getElementById('arrTo').value=ft(addM(pt(this.value),60));});
 });
-
 function setMode(m){
   curMode=m;
-  document.getElementById('mode-single').className='seg-btn'+(m==='single'?' on':'');
-  document.getElementById('mode-multi').className='seg-btn'+(m==='multi'?' on':'');
-  document.getElementById('dep-section').style.display=m==='single'?'':'none';
+  document.getElementById('mode-single').classList.toggle('on',m==='single');
+  document.getElementById('mode-multi').classList.toggle('on',m==='multi');
+  document.getElementById('dep-fld').style.display=m==='single'?'':'none';
 }
 
 // ── recherche ──
 function doSearch(){
-  const depMin=pt(document.getElementById('depTime').value);
-  const arrFrom=pt(document.getElementById('arrFrom').value);
-  const arrTo=pt(document.getElementById('arrTo').value);
-  const co=document.getElementById('courrier').value;
+  const depMin=pt(document.getElementById('depTime').value), arrFrom=pt(document.getElementById('arrFrom').value), arrTo=pt(document.getElementById('arrTo').value);
   const dep=document.getElementById('dep').value.trim().toUpperCase();
-
-  fCo='all'; fReg='all';
-  document.querySelectorAll('#co-pills .pill,#reg-pills .pill').forEach(p=>{p.className='pill'+(p.dataset.v==='all'?' on':'');});
-
   lastResults=ROUTES.filter(r=>{
     if(curAirline!=='all'&&r.al!==curAirline)return false;
     if(curMode==='single'&&r.dep!==dep)return false;
-    if(co!=='all'&&r.co!==co)return false;
     return inW(addM(depMin,r.dur),arrFrom,arrTo);
-  }).map(r=>({...r,depMin,arrMin:addM(depMin,r.dur)}))
-    .sort((a,b)=>a.dur-b.dur||b.n-a.n);
-
+  }).map(r=>({...r,depMin,arrMin:addM(depMin,r.dur)})).sort((a,b)=>a.dur-b.dur||b.n-a.n);
   const who=curAirline==='all'?'Toutes compagnies':airlineName(curAirline);
-  document.getElementById('rh-title').textContent=curMode==='multi'?who:`${dep} · ${who}`;
-  document.getElementById('rh-sub').textContent=`Départ ${ft(depMin)} · arrivée ${ft(arrFrom)}–${ft(arrTo)}`;
-
-  shown=PAGE;
-  setView('list');
-  showScreen('results');
+  document.getElementById('sum-title').textContent=(curMode==='multi'?'Depuis partout':dep)+' · '+who;
+  document.getElementById('sum-sub').textContent=`Départ ${ft(depMin)}, arrivée entre ${ft(arrFrom)} et ${ft(arrTo)}`;
+  const p=document.getElementById('panel'); p.classList.add('searched'); p.classList.remove('editing','low');
+  shown=PAGE; selFlight=null; closeApt(false);
+  renderResults(true);
 }
-
-function getFiltered(){
-  return lastResults.filter(x=>(fCo==='all'||x.co===fCo)&&(fReg==='all'||x.reg===fReg)&&!(hideCtl&&controlInfo(x)));
-}
-
-function renderResults(){
-  const r=getFiltered();
-  document.getElementById('count-n').textContent=r.length;
+function editSearch(){document.getElementById('panel').classList.add('editing');document.getElementById('panel').classList.remove('low');}
+function getFiltered(){return lastResults.filter(x=>(fCo==='all'||x.co===fCo)&&(fReg==='all'||x.reg===fReg)&&!(hideCtl&&controlInfo(x)));}
+function renderResults(fit){
+  const r=getFiltered(); mapR=r;
+  document.getElementById('count-n').textContent=r.length.toLocaleString('fr-FR');
   document.getElementById('count-lbl').textContent=r.length>1?'vols possibles':'vol possible';
-  if(curView==='list')renderList(r); else renderMap(r);
+  renderList(r);
+  if(selApt&&!r.some(x=>x.dep===selApt||x.arr===selApt))selApt=null;
+  if(selApt)selectApt(selApt,false); else drawAll(fit);
 }
+document.getElementById('co-chips').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;
+  document.querySelectorAll('#co-chips .chip').forEach(c=>c.classList.toggle('on',c===b));fCo=b.dataset.v;shown=PAGE;renderResults(true);});
+document.getElementById('reg').addEventListener('change',e=>{fReg=e.target.value;e.target.classList.toggle('on',fReg!=='all');shown=PAGE;renderResults(true);});
+document.getElementById('ctl-btn').addEventListener('click',e=>{hideCtl=!hideCtl;e.target.classList.toggle('on',hideCtl);shown=PAGE;renderResults(false);});
+document.getElementById('handle').addEventListener('click',()=>{const p=document.getElementById('panel');if(p.classList.contains('searched'))p.classList.toggle('low');});
 
 function simbriefUrl(x){
-  // numéro de vol commercial (AF1234 -> 1234) + indicatif ATC réel (TVF86FD) s'il diffère
   const fnum=(x.fn||'').replace(/^[A-Z0-9]{2}/,''), csnum=(x.cs||'').slice(3);
   const num=/^\d/.test(fnum)?fnum:(/^\d+$/.test(csnum)?csnum:'');
   const p=new URLSearchParams({orig:x.dep,dest:x.arr});
-  if(/^[A-Z]{3}$/.test(x.al)){ p.set('airline',x.al); if(num)p.set('fltnum',num); if(x.cs&&x.cs!==x.al+num)p.set('callsign',x.cs); }
+  if(/^[A-Z]{3}$/.test(x.al)){p.set('airline',x.al);if(num)p.set('fltnum',num);if(x.cs&&x.cs!==x.al+num)p.set('callsign',x.cs);}
   return 'https://www.simbrief.com/system/dispatch.php?'+p.toString();
 }
-
-function card(x){
-  const cc={LH:'',MH:'mh',SH:'sh'}[x.co]||'';
-  const real=x.hdep?`Départ réel habituel : ${utcToParis(x.hdep)} (Paris)`:'';
-  const src=x.src==='G'?'Horaire officiel':x.src==='E'?'Horaire officiel · durée estimée':`${x.n} vol${x.n>1?'s':''} observé${x.n>1?'s':''}`;
-  return `<div class="fcard ${cc}">
-    <div class="fcard-al">${esc(airlineName(x.al))}</div>
-    <div class="fcard-dest">${x.dep} → ${x.arr}</div>
-    <div class="fcard-city">${esc(aptName(x.dep))} → ${esc(aptName(x.arr))}</div>
-    <div class="fcard-num">${esc(x.cs)}${x.fn&&x.fn!==x.cs?' · '+esc(x.fn):''}${x.ac?' · '+esc(x.ac):''}</div>
-    <div class="fcard-badges">
-      <span class="badge ${CO_BADGE[x.co]||'b-lh'}">${CO_LABELS[x.co]||x.co}</span>
-      <span class="badge ${REG_BADGE[x.reg]||'b-reg'}">${REG_LABELS[x.reg]||x.reg}</span>
-      <span class="badge b-src">${src}</span>
+function srcText(x){return x.src==='G'?'Horaire officiel':x.src==='E'?'Horaire officiel, durée estimée':`${x.n} vol${x.n>1?'s':''} observé${x.n>1?'s':''}, durée estimée`;}
+function strip(x,i){
+  const c=controlInfo(x), sel=selFlight===keyOf(x);
+  const fn=x.fn&&x.fn.slice(2)!==x.cs.slice(3)?` (${esc(x.fn)})`:'';
+  return `<div class="strip ${x.co}${sel?' sel':''}" data-i="${i}">
+    <div class="tab"></div>
+    <div class="main">
+      <div class="cs">${esc(x.cs)}${c?'<span class="atc" title="Contrôlé sur IVAO"></span>':''}</div>
+      <div class="rt">${x.dep} – ${x.arr}</div>
+      <div class="meta">${esc(airlineName(x.al))}${fn}${x.ac?' · '+esc(x.ac):''}</div>
     </div>
-    <div class="fcard-times">
-      <div class="tblock"><div class="tval">${ft(x.depMin)}</div><div class="tlbl">départ</div></div>
-      <div class="tarrow">──────→</div>
-      <div class="tblock"><div class="tval">${ft(x.arrMin)}</div><div class="tlbl">arrivée</div></div>
-      <div class="tdur"><strong>${fd(x.dur)}</strong><span>${x.src==='G'?'bloc':'bloc estimé'}</span></div>
+    <div class="times"><div>${ft(x.depMin)}<small>départ</small></div><div>${ft(x.arrMin)}<small>${fd(x.dur)}</small></div></div>
+    <div class="detail">
+      <p>${esc(aptName(x.dep))} → ${esc(aptName(x.arr))}</p>
+      <p>${CO_LABEL[x.co]||''} · ${srcText(x)}${x.hdep?` · part d'habitude à ${utcToParis(x.hdep)} (Paris)`:''}</p>
+      ${ivaoWarn(x)}
+      <a class="sb" href="${simbriefUrl(x)}" target="_blank" rel="noopener">Préparer dans Simbrief</a>
     </div>
-    <div class="real-time">${real}</div>
-    ${ivaoWarn(x)}
-    <a href="${simbriefUrl(x)}" target="_blank" class="sb-link">Ouvrir dans Simbrief ↗</a>
   </div>`;
 }
-
 function renderList(r){
-  const body=document.getElementById('results-body');
-  if(!r.length){body.innerHTML='<div class="no-res">✈️<br><br>Aucun vol pour ce créneau.<br>Élargis la plage d\'arrivée ou change de compagnie.</div>';return;}
-  body.innerHTML='<div class="cards">'+r.slice(0,shown).map(card).join('')+'</div>'+
-    (r.length>shown?`<button class="more-btn" onclick="shown+=${PAGE};renderList(getFiltered())">Afficher plus (${r.length-shown} restants)</button>`:'');
+  const el=document.getElementById('list');
+  if(!r.length){el.innerHTML='<div class="empty">Aucun vol ne tombe dans ce créneau.<br>Élargis l\'heure d\'arrivée, choisis une autre compagnie ou pars de partout.</div>';return;}
+  el.innerHTML=r.slice(0,shown).map((x,i)=>strip(x,i)).join('')+(r.length>shown?`<button class="more" onclick="shown+=PAGE;renderList(getFiltered())">Voir ${Math.min(PAGE,r.length-shown)} vols de plus (${r.length-shown} restants)</button>`:'');
 }
+document.getElementById('list').addEventListener('click',e=>{
+  if(e.target.closest('a'))return;
+  const s=e.target.closest('.strip'); if(!s)return;
+  const x=mapR[+s.dataset.i]; const k=keyOf(x);
+  selFlight=selFlight===k?null:k;
+  document.querySelectorAll('#list .strip').forEach(el=>el.classList.toggle('sel',el===s&&!!selFlight));
+  if(selFlight)focusFlight(x); else highlight();
+});
 
+// ── carte ──
 function greatCircle(lat1,lon1,lat2,lon2,n=64){
   const d2r=d=>d*Math.PI/180,r2d=r=>r*180/Math.PI;
   const p1=d2r(lat1),l1=d2r(lon1),p2=d2r(lat2),l2=d2r(lon2);
@@ -542,46 +454,148 @@ function greatCircle(lat1,lon1,lat2,lon2,n=64){
   const pts=[];let prev=null;
   for(let i=0;i<=n;i++){
     const f=i/n,A=Math.sin((1-f)*d)/Math.sin(d),B=Math.sin(f*d)/Math.sin(d);
-    const x=A*Math.cos(p1)*Math.cos(l1)+B*Math.cos(p2)*Math.cos(l2);
-    const y=A*Math.cos(p1)*Math.sin(l1)+B*Math.cos(p2)*Math.sin(l2);
-    const z=A*Math.sin(p1)+B*Math.sin(p2);
+    const x=A*Math.cos(p1)*Math.cos(l1)+B*Math.cos(p2)*Math.cos(l2), y=A*Math.cos(p1)*Math.sin(l1)+B*Math.cos(p2)*Math.sin(l2), z=A*Math.sin(p1)+B*Math.sin(p2);
     let lon=r2d(Math.atan2(y,x));
-    if(prev!==null){while(lon-prev>180)lon-=360;while(lon-prev<-180)lon+=360;}  // pas de saut à l'antiméridien
-    prev=lon;
-    pts.push([r2d(Math.atan2(z,Math.sqrt(x*x+y*y))),lon]);
+    if(prev!==null){while(lon-prev>180)lon-=360;while(lon-prev<-180)lon+=360;}
+    prev=lon; pts.push([r2d(Math.atan2(z,Math.sqrt(x*x+y*y))),lon]);
   }
   return pts;
 }
+function initMap(){
+  map=L.map('map',{zoomControl:true,worldCopyJump:true,attributionControl:true}).setView([46,8],4);
+  map.attributionControl.setPrefix(false);
+  const base=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',{maxZoom:16,attribution:'Esri, HERE, Garmin, © OpenStreetMap'}).addTo(map);
+  let fails=0; base.on('tileerror',()=>{if(++fails===3){map.removeLayer(base);L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap'}).addTo(map);}});
+  map.createPane('ivao').style.zIndex=350;
+  map.createPane('ivaoLbl').style.zIndex=640;
+  flightLayer=L.layerGroup().addTo(map);
+  map.on('click',()=>{if(selApt)closeApt(true);});
+}
+function pads(){
+  if(wide())return{paddingTopLeft:[440,40],paddingBottomRight:[selApt?420:40,40]};
+  const h=(selApt?document.getElementById('apt'):document.getElementById('panel')).offsetHeight;
+  return{paddingTopLeft:[30,70],paddingBottomRight:[30,h+20]};
+}
+function popupHtml(x){
+  return `<div class="pop"><b>${esc(x.cs)} · ${x.dep} – ${x.arr}</b><p>${esc(airlineName(x.al))}${x.ac?' · '+esc(x.ac):''}</p><p>${ft(x.depMin)} → ${ft(x.arrMin)} · ${fd(x.dur)}</p>${ivaoWarn(x,true)}<a class="sb" href="${simbriefUrl(x)}" target="_blank" rel="noopener">Préparer dans Simbrief</a></div>`;
+}
+function drawFlights(list,focus){
+  flightLayer.clearLayers(); mapLines=[];
+  const bounds=[], apts={};
+  list.forEach(x=>{
+    const dc=AIRPORTS[x.dep],ac=AIRPORTS[x.arr]; if(!dc||!ac)return;
+    const color=CO_COLOR[x.co]||'#5ec8ff';
+    (apts[x.dep]=apts[x.dep]||{dep:0,arr:0}).dep++; (apts[x.arr]=apts[x.arr]||{dep:0,arr:0}).arr++;
+    const pts=greatCircle(dc[0],dc[1],ac[0],ac[1]);
+    const line=L.polyline(pts,{color,weight:1.6,opacity:.7}).bindPopup(()=>popupHtml(x)).addTo(flightLayer);
+    mapLines.push({line,x,pts}); bounds.push(pts[0],pts[pts.length-1]);
+  });
+  Object.entries(apts).forEach(([c,o])=>{
+    const a=AIRPORTS[c], main=focus?c===focus:o.dep>0;
+    const dot=L.circleMarker([a[0],a[1]],{radius:main?6:4,fillColor:main?'#5ec8ff':'#0a1424',color:main?'#0a1424':'#dbe6f3',weight:main?2:1.5,fillOpacity:1}).addTo(flightLayer);
+    const lbl=L.marker([a[0],a[1]],{icon:L.divIcon({className:'apt-lbl'+(main?' main':''),html:`<div>${c}</div>`,iconAnchor:[-7,9]})}).addTo(flightLayer);
+    const open=e=>{L.DomEvent.stopPropagation(e);selectApt(c,true);};
+    dot.on('click',open); lbl.on('click',open);
+  });
+  highlight();
+  return bounds;
+}
+function highlight(){
+  mapLines.forEach(({line,x})=>{
+    const on=selFlight?keyOf(x)===selFlight:selApt?(selTab==='dep'?x.dep===selApt:x.arr===selApt):true;
+    const dim=selFlight||selApt;
+    line.setStyle({weight:on&&dim?3.2:1.6,opacity:on?(dim?1:.7):.18});
+    if(on&&dim)line.bringToFront();
+  });
+}
+function drawAll(fit){
+  const note=document.getElementById('note');
+  note.style.display=mapR.length>MAP_MAX?'block':'none';
+  note.textContent=`${MAP_MAX} vols tracés sur ${mapR.length} · touche un aéroport pour tous ses vols`;
+  const b=drawFlights(mapR.slice(0,MAP_MAX),null);
+  if(fit&&b.length)map.fitBounds(b,{...pads(),maxZoom:7});
+}
+function focusFlight(x){
+  let m=mapLines.find(l=>keyOf(l.x)===keyOf(x));
+  if(!m){drawFlights([...mapR.slice(0,MAP_MAX),x],selApt);m=mapLines.find(l=>keyOf(l.x)===keyOf(x));}
+  highlight();
+  if(m)map.fitBounds(L.latLngBounds(m.pts),{...pads(),maxZoom:8});
+}
 
-// ===== Contrôle en ligne IVAO (flux public whazzup, rafraîchi chaque minute) =====
+// ── panneau aéroport ──
+function selectApt(c,fit){
+  selApt=c; selFlight=null;
+  const deps=mapR.filter(x=>x.dep===c), arrs=mapR.filter(x=>x.arr===c);
+  if(fit)selTab=deps.length?'dep':'arr';
+  document.getElementById('note').style.display='none';
+  document.body.classList.add('apt-open');
+  openApt(c);
+  const b=drawFlights([...deps,...arrs],c);
+  if(fit&&b.length)map.fitBounds(b,{...pads(),maxZoom:7});
+}
+function openApt(c){
+  const deps=mapR.filter(x=>x.dep===c), arrs=mapR.filter(x=>x.arr===c), a=AIRPORTS[c]||[], list=selTab==='dep'?deps:arrs;
+  const atc=IVAO&&IVAO.apts[a[5]], el=document.getElementById('apt');
+  el.innerHTML=`<div class="ah"><div><b>${c}</b><span>${esc(a[2]||'')}</span>
+      ${atc?`<div class="atcline">Contrôlé sur IVAO : ${uniqPos(atc.map(i=>i.pos)).join(', ')}</div>`:''}</div>
+      <button class="x" onclick="closeApt(true)" aria-label="Fermer">✕</button></div>
+    <div class="atabs">
+      <button class="${selTab==='dep'?'on':''}" onclick="selTab='dep';openApt('${c}');highlight()">Départs ${deps.length}</button>
+      <button class="${selTab==='arr'?'on':''}" onclick="selTab='arr';openApt('${c}');highlight()">Arrivées ${arrs.length}</button>
+    </div>
+    <div class="alist">${list.length?list.map(x=>strip(x,mapR.indexOf(x))).join(''):'<div class="empty">Aucun vol dans ce sens pour ce créneau.</div>'}</div>`;
+  el.style.display='flex';
+}
+document.getElementById('apt').addEventListener('click',e=>{
+  if(e.target.closest('a,button'))return;
+  const s=e.target.closest('.strip'); if(!s)return;
+  const x=mapR[+s.dataset.i], k=keyOf(x);
+  selFlight=selFlight===k?null:k;
+  document.querySelectorAll('#apt .strip').forEach(el=>el.classList.toggle('sel',el===s&&!!selFlight));
+  if(selFlight)focusFlight(x); else highlight();
+});
+function closeApt(redraw){
+  const was=selApt; selApt=null;
+  document.getElementById('apt').style.display='none';
+  document.body.classList.remove('apt-open');
+  if(redraw&&was)drawAll(true);
+}
+
+// ===== Contrôle IVAO en ligne (flux public, chaque minute) + limites des secteurs (data/ivao_sectors.json) =====
 const IVAO_URL='https://api.ivao.aero/v2/tracker/whazzup';
 const APT_POS=['DEL','GND','TWR','APP','DEP'];
-let IVAO=null, ivaoErr=null, ivaoLayer=null, ivaoShow=false, hideCtl=false, ctrlCache={};
+let IVAO=null, ivaoErr=null, ivaoShow=false, hideCtl=false, ctrlCache={};
 const uniqPos=a=>APT_POS.filter(p=>a.includes(p));
+function bboxOf(polys){let a=90,b=-90,c=180,d=-180;polys.forEach(p=>p.forEach(([la,lo])=>{a=Math.min(a,la);b=Math.max(b,la);c=Math.min(c,lo);d=Math.max(d,lo);}));return[a,b,c,d];}
+function sectorPolys(cs,center){
+  if(SECTORS[cs])return SECTORS[cs].p;
+  // un indicatif de FIR entière (LFFF_CTR) couvre tous ses sous-secteurs
+  const all=Object.values(SECTORS).filter(s=>s.t==='CTR'&&s.c===center).flatMap(s=>s.p);
+  return all.length?all:null;
+}
 function parseIvao(j){
-  const atcs=(j.clients&&j.clients.atcs)||[], apts={}, ctrs=[];
+  const atcs=(j.clients&&j.clients.atcs)||[], apts={}, ctrs=[], apps=[];
   atcs.forEach(a=>{
     const cs=String(a.callsign||'').toUpperCase(), parts=cs.split('_');
     const ap=a.atcPosition||null, sc=a.subcenter||null;
     const pos=String((a.atcSession&&a.atcSession.position)||(ap&&ap.position)||(sc&&sc.position)||parts[parts.length-1]).toUpperCase();
     const freq=(a.atcSession&&a.atcSession.frequency)||(ap&&ap.frequency)||(sc&&sc.frequency)||'';
     const rm=(ap&&ap.regionMap)||(sc&&sc.regionMap)||null;
-    const poly=Array.isArray(rm)?rm.map(p=>[+(p.lat??p.latitude),+(p.lng??p.lon??p.longitude)]).filter(p=>isFinite(p[0])&&isFinite(p[1])):[];
+    const own=Array.isArray(rm)?rm.map(p=>[+(p.lat??p.latitude),+(p.lng??p.lon??p.longitude)]).filter(p=>isFinite(p[0])&&isFinite(p[1])):[];
     const lt=a.lastTrack||{};
-    const it={cs,pos,freq,poly:poly.length>2?poly:null,lat:lt.latitude,lon:lt.longitude};
-    if(APT_POS.includes(pos)){it.icao=String((ap&&ap.airportId)||parts[0]).toUpperCase();(apts[it.icao]=apts[it.icao]||[]).push(it);}
-    else if(pos==='CTR'||pos==='FSS'){if(it.poly){const la=it.poly.map(p=>p[0]),lo=it.poly.map(p=>p[1]);it.bbox=[Math.min(...la),Math.max(...la),Math.min(...lo),Math.max(...lo)];}ctrs.push(it);}
+    const it={cs,pos,freq,lat:lt.latitude,lon:lt.longitude};
+    if(APT_POS.includes(pos)){
+      it.icao=String((ap&&ap.airportId)||parts[0]).toUpperCase();(apts[it.icao]=apts[it.icao]||[]).push(it);
+      if(pos==='APP'||pos==='DEP'){it.polys=SECTORS[cs]?SECTORS[cs].p:(own.length>2?[own]:null);if(it.polys)apps.push(it);}
+    }else if(pos==='CTR'||pos==='FSS'){
+      it.polys=own.length>2?[own]:sectorPolys(cs,String((sc&&sc.centerId)||parts[0]).toUpperCase());
+      if(it.polys)it.bbox=bboxOf(it.polys);
+      ctrs.push(it);
+    }
   });
-  return {apts,ctrs,n:atcs.length,at:new Date()};
+  return {apts,ctrs,apps,n:atcs.length,at:new Date()};
 }
-function pip(p,poly){ // point dans polygone (lat,lon)
-  let inside=false;
-  for(let i=0,j=poly.length-1;i<poly.length;j=i++){
-    const [yi,xi]=poly[i],[yj,xj]=poly[j];
-    if((yi>p[0])!==(yj>p[0])&&p[1]<(xj-xi)*(p[0]-yi)/(yj-yi)+xi)inside=!inside;
-  }
-  return inside;
-}
+function pip(p,poly){let ins=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const[yi,xi]=poly[i],[yj,xj]=poly[j];if((yi>p[0])!==(yj>p[0])&&p[1]<(xj-xi)*(p[0]-yi)/(yj-yi)+xi)ins=!ins;}return ins;}
 function controlInfo(x){
   if(!IVAO)return null;
   const k=x.dep+'|'+x.arr; if(k in ctrlCache)return ctrlCache[k];
@@ -589,161 +603,53 @@ function controlInfo(x){
   const dep=uniqPos((IVAO.apts[d&&d[5]]||[]).map(i=>i.pos)), arr=uniqPos((IVAO.apts[a&&a[5]]||[]).map(i=>i.pos));
   let ctr=[];
   if(d&&a&&IVAO.ctrs.length){
-    const pts=greatCircle(d[0],d[1],a[0],a[1],48).map(([la,lo])=>[la,((lo+540)%360)-180]);
-    ctr=IVAO.ctrs.filter(c=>c.poly&&pts.some(p=>p[0]>=c.bbox[0]&&p[0]<=c.bbox[1]&&p[1]>=c.bbox[2]&&p[1]<=c.bbox[3]&&pip(p,c.poly))).map(c=>c.cs);
+    const pts=greatCircle(d[0],d[1],a[0],a[1],60).map(([la,lo])=>[la,((lo+540)%360)-180]);
+    ctr=IVAO.ctrs.filter(c=>c.polys&&pts.some(p=>p[0]>=c.bbox[0]&&p[0]<=c.bbox[1]&&p[1]>=c.bbox[2]&&p[1]<=c.bbox[3]&&c.polys.some(pl=>pip(p,pl)))).map(c=>c.cs);
   }
   return ctrlCache[k]=(dep.length||arr.length||ctr.length)?{dep,arr,ctr:[...new Set(ctr)],di:d&&d[5],ai:a&&a[5]}:null;
 }
 function ivaoWarn(x,compact){
   const c=controlInfo(x); if(!c)return '';
   const parts=[];
-  if(c.dep.length)parts.push(`départ ${c.di} ${c.dep.join(', ')}`);
-  if(c.ctr.length)parts.push(`en route ${c.ctr.join(', ')}`);
-  if(c.arr.length)parts.push(`arrivée ${c.ai} ${c.arr.join(', ')}`);
-  return compact?`<span class="ivao-tag">🎧 IVAO : ${esc(parts.join(' · '))}</span>`
-    :`<div class="ivao-warn"><b>🎧 Attention : vol contrôlé sur IVAO en ce moment</b><br>${esc(parts.join(' · '))}</div>`;
+  if(c.dep.length)parts.push(`au départ (${c.di} ${c.dep.join(', ')})`);
+  if(c.ctr.length)parts.push(`en route (${c.ctr.join(', ')})`);
+  if(c.arr.length)parts.push(`à l'arrivée (${c.ai} ${c.arr.join(', ')})`);
+  return compact?`<p class="warn">Contrôlé sur IVAO ${esc(parts.join(', '))}</p>`
+    :`<div class="warn"><b>Ce vol est contrôlé sur IVAO en ce moment</b>${esc(parts.join(', '))}</div>`;
 }
 async function loadIvao(){
-  try{
-    const res=await fetch(IVAO_URL,{cache:'no-store'});
-    if(!res.ok)throw new Error('HTTP '+res.status);
-    IVAO=parseIvao(await res.json()); ivaoErr=null;
-  }catch(e){ivaoErr=e.message||'erreur';}
+  try{const res=await fetch(IVAO_URL,{cache:'no-store'});if(!res.ok)throw new Error('HTTP '+res.status);IVAO=parseIvao(await res.json());ivaoErr=null;}
+  catch(e){ivaoErr=e.message||'erreur';}
   ctrlCache={};
   const st=document.getElementById('ivao-status');
-  if(st)st.textContent=ivaoErr?`IVAO indisponible (${ivaoErr})`:`IVAO : ${IVAO.n} contrôleurs · ${IVAO.at.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}`;
-  if(!document.getElementById('s-results').classList.contains('active'))return;
-  if(curView==='list'||hideCtl)renderResults();
-  else{ if(selApt)openAptSheet(selApt); drawIvao(); }
+  st.textContent=ivaoErr?`IVAO injoignable (${ivaoErr})`:`IVAO ${IVAO.at.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})} · ${IVAO.n} contrôleurs`;
+  drawIvao();
+  if(!lastResults.length)return;
+  if(hideCtl){renderResults(false);return;}
+  renderList(mapR);
+  if(selApt)openApt(selApt);
 }
 function drawIvao(){
-  if(!map)return;
   if(ivaoLayer){map.removeLayer(ivaoLayer);ivaoLayer=null;}
   if(!ivaoShow||!IVAO)return;
   ivaoLayer=L.layerGroup().addTo(map);
-  IVAO.ctrs.forEach(c=>{ if(c.poly)L.polygon(c.poly,{pane:'ivao',color:'#f59e0b',weight:1,fillColor:'#f59e0b',fillOpacity:0.08,interactive:false}).addTo(ivaoLayer);
-    const ll=c.poly?L.polygon(c.poly).getBounds().getCenter():(isFinite(c.lat)?[c.lat,c.lon]:null);
-    if(ll)L.marker(ll,{pane:'ivao',interactive:false,icon:L.divIcon({className:'ivao-lbl',html:`<div>${esc(c.cs)}${c.freq?' '+esc(c.freq):''}</div>`,iconAnchor:[30,8]})}).addTo(ivaoLayer); });
+  const zone=(polys,style)=>polys.forEach(p=>L.polygon(p,{pane:'ivao',interactive:false,...style}).addTo(ivaoLayer));
+  const label=(ll,txt)=>L.marker(ll,{pane:'ivaoLbl',interactive:false,icon:L.divIcon({className:'ivao-lbl',html:`<div>${esc(txt)}</div>`,iconAnchor:[24,8]})}).addTo(ivaoLayer);
+  IVAO.ctrs.forEach(c=>{
+    if(c.polys){zone(c.polys,{color:'#ffb020',weight:1.4,opacity:.9,fillColor:'#ffb020',fillOpacity:.07});label(L.polygon(c.polys[0]).getBounds().getCenter(),`${c.cs} ${c.freq}`);}
+    else if(isFinite(c.lat)){L.circleMarker([c.lat,c.lon],{pane:'ivao',radius:5,color:'#ffb020',weight:2,fill:false,interactive:false}).addTo(ivaoLayer);label([c.lat,c.lon],`${c.cs} ${c.freq}`);}
+  });
+  IVAO.apps.forEach(c=>zone(c.polys,{color:'#ffb020',weight:1,dashArray:'4 4',opacity:.8,fillColor:'#ffb020',fillOpacity:.05}));
+  const byIcao={}; Object.keys(AIRPORTS).forEach(k=>{if(AIRPORTS[k][5])byIcao[AIRPORTS[k][5]]=AIRPORTS[k];});
   Object.entries(IVAO.apts).forEach(([icao,list])=>{
-    const code=Object.keys(AIRPORTS).find(k=>AIRPORTS[k][5]===icao), a=code&&AIRPORTS[code];
-    const ll=a?[a[0],a[1]]:(isFinite(list[0].lat)?[list[0].lat,list[0].lon]:null); if(!ll)return;
-    L.circleMarker(ll,{pane:'ivao',radius:13,color:'#f59e0b',weight:2.5,fill:false,interactive:false}).addTo(ivaoLayer);
-    L.marker(ll,{pane:'ivao',interactive:false,icon:L.divIcon({className:'ivao-lbl',html:`<div>${icao} ${uniqPos(list.map(i=>i.pos)).join(' ')}</div>`,iconAnchor:[-14,-8]})}).addTo(ivaoLayer);
+    const a=byIcao[icao], ll=a?[a[0],a[1]]:(isFinite(list[0].lat)?[list[0].lat,list[0].lon]:null); if(!ll)return;
+    L.circleMarker(ll,{pane:'ivao',radius:11,color:'#ffb020',weight:2,fill:false,interactive:false}).addTo(ivaoLayer);
+    L.marker(ll,{pane:'ivaoLbl',interactive:false,icon:L.divIcon({className:'ivao-lbl',html:`<div>${icao} ${uniqPos(list.map(i=>i.pos)).join(' ')}</div>`,iconAnchor:[-13,-6]})}).addTo(ivaoLayer);
   });
 }
-
-let mapLines=[], selApt=null, selTab='dep', mapR=[];
-function initMap(){
-  map=L.map('leaflet-map',{zoomControl:true,worldCopyJump:true}).setView([30,10],2);
-  map.attributionControl.setPrefix(false);
-  // Fond Esri sans clé d'API ; bascule sur OpenStreetMap si les tuiles ne chargent pas
-  const esri=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
-    {maxZoom:16,attribution:'Esri, HERE, Garmin, © OpenStreetMap'}).addTo(map);
-  let fails=0;
-  esri.on('tileerror',()=>{if(++fails===3){map.removeLayer(esri);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap'}).addTo(map);}});
-  map.on('click',()=>{if(selApt)closeAptSheet();});
-  map.createPane('ivao').style.zIndex=350;   // sous les lignes de vol
-  const Btn=L.Control.extend({onAdd(){const b=L.DomUtil.create('button','ivao-map-btn');b.id='ivao-map-btn';b.textContent='🎧 IVAO';
-    L.DomEvent.disableClickPropagation(b);b.onclick=()=>{ivaoShow=!ivaoShow;b.classList.toggle('on',ivaoShow);drawIvao();};return b;}});
-  new Btn({position:'topleft'}).addTo(map);
-}
-// Trace des vols ; focus = aéroport sélectionné (on ne garde alors que ses vols et les aéroports reliés)
-function drawFlights(list,focus){
-  mapLayers.forEach(l=>map.removeLayer(l)); mapLayers=[]; mapLines=[];
-  const bounds=[], apts={};
-  const touch=(c,role,color)=>{const o=apts[c]||(apts[c]={dep:0,arr:0,color});o[role]++;};
-  list.forEach(x=>{
-    const dc=AIRPORTS[x.dep],ac=AIRPORTS[x.arr];
-    if(!dc||!ac)return;
-    const color=CO_COLOR[x.co]||'#1a56db';
-    touch(x.dep,'dep',color); touch(x.arr,'arr',color);
-    const popup=`<div class="map-popup"><strong>${x.dep} → ${x.arr}</strong><div class="pop-info">${esc(airlineName(x.al))}<br>${esc(x.cs)}${x.ac?' · '+esc(x.ac):''}<br>⏱ ${fd(x.dur)} · ${ft(x.depMin)}→${ft(x.arrMin)}</div>${ivaoWarn(x,true)}<a href="${simbriefUrl(x)}" target="_blank" class="pop-sb">Ouvrir dans Simbrief ↗</a></div>`;
-    const pts=greatCircle(dc[0],dc[1],ac[0],ac[1]);
-    const line=L.polyline(pts,{color,weight:focus?2.5:2,opacity:focus?0.9:0.75}).bindPopup(popup).addTo(map);
-    mapLayers.push(line); mapLines.push({line,x,color});
-    bounds.push(pts[0],pts[pts.length-1]);
-  });
-  Object.entries(apts).forEach(([c,o])=>{
-    const a=AIRPORTS[c], main=focus?c===focus:o.dep>0, col=main?'#1a56db':o.color;
-    const dot=L.circleMarker([a[0],a[1]],{radius:main?7:5,fillColor:main?'#fff':col,color:main?'#1a56db':'#fff',weight:main?2.5:1.5,fillOpacity:1}).addTo(map);
-    const lbl=L.marker([a[0],a[1]],{icon:L.divIcon({className:'apt-lbl',html:`<div style="background:${col}">${c}</div>`,iconAnchor:[-8,10]})}).addTo(map);
-    const open=e=>{L.DomEvent.stopPropagation(e);selectApt(c);};
-    dot.on('click',open); lbl.on('click',open);
-    mapLayers.push(dot,lbl);
-  });
-  return bounds;
-}
-function renderMap(r){
-  if(!map)initMap();
-  mapR=r; selApt=null;
-  const sh=document.getElementById('apt-sheet'); if(sh)sh.style.display='none';
-  const note=document.getElementById('map-note');
-  note.style.display=r.length>MAP_MAX?'':'none';
-  note.textContent=`${MAP_MAX} premiers vols tracés sur ${r.length} · touche un aéroport pour voir tous ses vols`;
-  const bounds=drawFlights(r.slice(0,MAP_MAX),null);
-  drawIvao();
-  if(bounds.length)map.fitBounds(bounds,{padding:[40,40]});
-  setTimeout(()=>map.invalidateSize(),100);
-}
-const wide=()=>matchMedia('(min-width:900px)').matches;
-function selectApt(c){
-  const deps=mapR.filter(x=>x.dep===c), arrs=mapR.filter(x=>x.arr===c);
-  selTab=deps.length?'dep':'arr';
-  selApt=c;
-  document.getElementById('map-note').style.display='none';
-  const bounds=drawFlights([...deps,...arrs],c);
-  // laisse de la place au panneau en bas
-  if(bounds.length)map.fitBounds(bounds,{paddingTopLeft:[30,30],paddingBottomRight:wide()?[440,30]:[30,Math.round(document.getElementById('map-view').clientHeight*0.55)],maxZoom:7});
-  openAptSheet(c);
-}
-function openAptSheet(c){
-  const deps=mapR.filter(x=>x.dep===c), arrs=mapR.filter(x=>x.arr===c);
-  const a=AIRPORTS[c]||[], list=selTab==='dep'?deps:arrs;
-  mapLines.forEach(({line,x})=>{const on=selTab==='dep'?x.dep===c:x.arr===c;line.setStyle({opacity:on?0.95:0.3,weight:on?3:1.5});if(on)line.bringToFront();});
-  document.getElementById('apt-sheet').innerHTML=`
-    <div class="as-head"><div><b>${c}</b><span>${esc(a[3]||'')}${a[2]?' · '+esc(a[2]):''}</span></div>
-      <button class="as-close" onclick="closeAptSheet()" aria-label="Fermer">✕</button></div>
-    <div class="as-tabs">
-      <button class="${selTab==='dep'?'on':''}" onclick="selTab='dep';openAptSheet('${c}')">Départs (${deps.length})</button>
-      <button class="${selTab==='arr'?'on':''}" onclick="selTab='arr';openAptSheet('${c}')">Arrivées (${arrs.length})</button>
-    </div>
-    <div class="as-list">${list.length?list.map(x=>`
-      <div class="as-row">
-        <div class="as-main"><b>${x.dep} → ${x.arr}</b><span>${esc(airlineName(x.al))} · ${esc(x.cs)}${x.fn&&x.fn.slice(2)!==x.cs.slice(3)?' ('+esc(x.fn)+')':''}${x.ac?' · '+esc(x.ac):''}</span>
-          <span>${ft(x.depMin)} → ${ft(x.arrMin)} · ${fd(x.dur)}${x.src==='G'?'':' (estimé)'}</span>${ivaoWarn(x,true)}</div>
-        <a href="${simbriefUrl(x)}" target="_blank" class="as-sb">Simbrief ↗</a>
-      </div>`).join(''):'<div class="as-empty">Aucun vol dans ce sens pour tes critères.</div>'}</div>`;
-  document.getElementById('apt-sheet').style.display='flex';
-}
-function closeAptSheet(){ renderMap(mapR); }
-
-function setView(v){
-  curView=v;
-  document.getElementById('vtab-list').className='vtab'+(v==='list'?' on':'');
-  document.getElementById('vtab-map').className='vtab'+(v==='map'?' on':'');
-  document.getElementById('results-body').style.display=v==='list'?'':'none';
-  document.getElementById('map-view').classList.toggle('active',v==='map');
-  renderResults();
-}
-
-function setPill(el,group){
-  const pid=group==='co'?'co-pills':'reg-pills';
-  document.querySelectorAll('#'+pid+' .pill').forEach(p=>p.className='pill');
-  const v=el.dataset.v;
-  if(group==='co'){fCo=v;el.className='pill'+(v==='LH'?' on-lh':v==='MH'?' on-mh':v==='SH'?' on-sh':' on');}
-  else{fReg=v;el.className='pill on';}
-  shown=PAGE;
-  renderResults();
-}
-
-function showScreen(id){
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.getElementById('s-'+id).classList.add('active');
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
-  document.getElementById('tab-'+id).classList.add('on');
-  if(id==='results'&&curView==='map'&&map)setTimeout(()=>map.invalidateSize(),150);
-}
+document.getElementById('ivao-btn').addEventListener('click',e=>{
+  ivaoShow=!ivaoShow; const b=e.currentTarget; b.classList.toggle('on',ivaoShow); b.setAttribute('aria-pressed',ivaoShow); drawIvao();
+});
 
 loadData();
 </script>
