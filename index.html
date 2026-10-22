@@ -158,6 +158,16 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
   .tab-bar{justify-content:center;}
   .tab-bar .tab{flex:0 0 200px;}
 }
+.ivao-warn{margin:10px 0 0;padding:8px 10px;border-radius:10px;background:rgba(245,158,11,0.15);color:#b45309;font-size:12px;line-height:1.4;}
+.ivao-tag{display:block;font-size:11px;color:#d97706;font-weight:600;white-space:normal !important;}
+@media(prefers-color-scheme:dark){.ivao-warn{color:#fbbf24;}.ivao-tag{color:#fbbf24;}}
+.count-banner{flex-wrap:wrap;}
+.ctl-btn{margin-left:auto;border:none;border-radius:14px;padding:5px 10px;font-size:12px;font-family:inherit;background:rgba(118,118,128,0.12);color:var(--sub);cursor:pointer;}
+.ctl-btn.on{background:#f59e0b;color:#fff;}
+.ivao-status{width:100%;font-size:11px;color:var(--sub);text-align:right;}
+.ivao-map-btn{border:2px solid rgba(0,0,0,0.2);background:#fff;color:#333;border-radius:6px;padding:6px 10px;font:600 13px -apple-system,sans-serif;cursor:pointer;}
+.ivao-map-btn.on{background:#f59e0b;color:#fff;}
+.ivao-lbl div{display:inline-block;white-space:nowrap;font-size:10px;font-weight:700;color:#fff;background:#d97706;padding:1px 5px;border-radius:4px;opacity:.9;}
 </style>
 </head>
 <body>
@@ -279,7 +289,9 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
       <button class="vtab on" id="vtab-list" onclick="setView('list')">📋 Liste</button>
       <button class="vtab" id="vtab-map" onclick="setView('map')">🗺️ Carte</button>
     </div>
-    <div class="count-banner"><strong id="count-n">0</strong><span id="count-lbl">vol possible</span></div>
+    <div class="count-banner"><strong id="count-n">0</strong><span id="count-lbl">vol possible</span>
+      <button class="ctl-btn" id="ctl-btn" onclick="hideCtl=!hideCtl;this.classList.toggle('on',hideCtl);renderResults()" title="Contrôleurs IVAO en ligne">🎧 Masquer les vols contrôlés</button>
+      <span class="ivao-status" id="ivao-status"></span></div>
     <div class="scroll-body" style="padding-top:10px" id="results-body"></div>
     <div id="map-view"><div id="leaflet-map"></div><div class="map-note" id="map-note" style="display:none"></div><div id="apt-sheet"></div></div>
   </div>
@@ -344,6 +356,7 @@ async function loadData(){
     ROUTES=r.rows.map(row=>Object.fromEntries(cols.map((c,i)=>[c,row[i]])));
     AIRLINES=r.airlines||{}; AIRPORTS=a; META=m;
     onLoaded();
+    loadIvao(); setInterval(()=>{if(!document.hidden)loadIvao();},60000);
   }catch(e){
     document.getElementById('loading-state').innerHTML='<div style="font-size:40px">⚠️</div><div>Impossible de charger les données<br><small>'+esc(e.message)+'</small></div>';
   }
@@ -469,7 +482,7 @@ function doSearch(){
 }
 
 function getFiltered(){
-  return lastResults.filter(x=>(fCo==='all'||x.co===fCo)&&(fReg==='all'||x.reg===fReg));
+  return lastResults.filter(x=>(fCo==='all'||x.co===fCo)&&(fReg==='all'||x.reg===fReg)&&!(hideCtl&&controlInfo(x)));
 }
 
 function renderResults(){
@@ -509,6 +522,7 @@ function card(x){
       <div class="tdur"><strong>${fd(x.dur)}</strong><span>${x.src==='G'?'bloc':'bloc estimé'}</span></div>
     </div>
     <div class="real-time">${real}</div>
+    ${ivaoWarn(x)}
     <a href="${simbriefUrl(x)}" target="_blank" class="sb-link">Ouvrir dans Simbrief ↗</a>
   </div>`;
 }
@@ -539,6 +553,85 @@ function greatCircle(lat1,lon1,lat2,lon2,n=64){
   return pts;
 }
 
+// ===== Contrôle en ligne IVAO (flux public whazzup, rafraîchi chaque minute) =====
+const IVAO_URL='https://api.ivao.aero/v2/tracker/whazzup';
+const APT_POS=['DEL','GND','TWR','APP','DEP'];
+let IVAO=null, ivaoErr=null, ivaoLayer=null, ivaoShow=false, hideCtl=false, ctrlCache={};
+const uniqPos=a=>APT_POS.filter(p=>a.includes(p));
+function parseIvao(j){
+  const atcs=(j.clients&&j.clients.atcs)||[], apts={}, ctrs=[];
+  atcs.forEach(a=>{
+    const cs=String(a.callsign||'').toUpperCase(), parts=cs.split('_');
+    const ap=a.atcPosition||null, sc=a.subcenter||null;
+    const pos=String((a.atcSession&&a.atcSession.position)||(ap&&ap.position)||(sc&&sc.position)||parts[parts.length-1]).toUpperCase();
+    const freq=(a.atcSession&&a.atcSession.frequency)||(ap&&ap.frequency)||(sc&&sc.frequency)||'';
+    const rm=(ap&&ap.regionMap)||(sc&&sc.regionMap)||null;
+    const poly=Array.isArray(rm)?rm.map(p=>[+(p.lat??p.latitude),+(p.lng??p.lon??p.longitude)]).filter(p=>isFinite(p[0])&&isFinite(p[1])):[];
+    const lt=a.lastTrack||{};
+    const it={cs,pos,freq,poly:poly.length>2?poly:null,lat:lt.latitude,lon:lt.longitude};
+    if(APT_POS.includes(pos)){it.icao=String((ap&&ap.airportId)||parts[0]).toUpperCase();(apts[it.icao]=apts[it.icao]||[]).push(it);}
+    else if(pos==='CTR'||pos==='FSS'){if(it.poly){const la=it.poly.map(p=>p[0]),lo=it.poly.map(p=>p[1]);it.bbox=[Math.min(...la),Math.max(...la),Math.min(...lo),Math.max(...lo)];}ctrs.push(it);}
+  });
+  return {apts,ctrs,n:atcs.length,at:new Date()};
+}
+function pip(p,poly){ // point dans polygone (lat,lon)
+  let inside=false;
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+    const [yi,xi]=poly[i],[yj,xj]=poly[j];
+    if((yi>p[0])!==(yj>p[0])&&p[1]<(xj-xi)*(p[0]-yi)/(yj-yi)+xi)inside=!inside;
+  }
+  return inside;
+}
+function controlInfo(x){
+  if(!IVAO)return null;
+  const k=x.dep+'|'+x.arr; if(k in ctrlCache)return ctrlCache[k];
+  const d=AIRPORTS[x.dep], a=AIRPORTS[x.arr];
+  const dep=uniqPos((IVAO.apts[d&&d[5]]||[]).map(i=>i.pos)), arr=uniqPos((IVAO.apts[a&&a[5]]||[]).map(i=>i.pos));
+  let ctr=[];
+  if(d&&a&&IVAO.ctrs.length){
+    const pts=greatCircle(d[0],d[1],a[0],a[1],48).map(([la,lo])=>[la,((lo+540)%360)-180]);
+    ctr=IVAO.ctrs.filter(c=>c.poly&&pts.some(p=>p[0]>=c.bbox[0]&&p[0]<=c.bbox[1]&&p[1]>=c.bbox[2]&&p[1]<=c.bbox[3]&&pip(p,c.poly))).map(c=>c.cs);
+  }
+  return ctrlCache[k]=(dep.length||arr.length||ctr.length)?{dep,arr,ctr:[...new Set(ctr)],di:d&&d[5],ai:a&&a[5]}:null;
+}
+function ivaoWarn(x,compact){
+  const c=controlInfo(x); if(!c)return '';
+  const parts=[];
+  if(c.dep.length)parts.push(`départ ${c.di} ${c.dep.join(', ')}`);
+  if(c.ctr.length)parts.push(`en route ${c.ctr.join(', ')}`);
+  if(c.arr.length)parts.push(`arrivée ${c.ai} ${c.arr.join(', ')}`);
+  return compact?`<span class="ivao-tag">🎧 IVAO : ${esc(parts.join(' · '))}</span>`
+    :`<div class="ivao-warn"><b>🎧 Attention : vol contrôlé sur IVAO en ce moment</b><br>${esc(parts.join(' · '))}</div>`;
+}
+async function loadIvao(){
+  try{
+    const res=await fetch(IVAO_URL,{cache:'no-store'});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    IVAO=parseIvao(await res.json()); ivaoErr=null;
+  }catch(e){ivaoErr=e.message||'erreur';}
+  ctrlCache={};
+  const st=document.getElementById('ivao-status');
+  if(st)st.textContent=ivaoErr?`IVAO indisponible (${ivaoErr})`:`IVAO : ${IVAO.n} contrôleurs · ${IVAO.at.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}`;
+  if(!document.getElementById('s-results').classList.contains('active'))return;
+  if(curView==='list'||hideCtl)renderResults();
+  else{ if(selApt)openAptSheet(selApt); drawIvao(); }
+}
+function drawIvao(){
+  if(!map)return;
+  if(ivaoLayer){map.removeLayer(ivaoLayer);ivaoLayer=null;}
+  if(!ivaoShow||!IVAO)return;
+  ivaoLayer=L.layerGroup().addTo(map);
+  IVAO.ctrs.forEach(c=>{ if(c.poly)L.polygon(c.poly,{pane:'ivao',color:'#f59e0b',weight:1,fillColor:'#f59e0b',fillOpacity:0.08,interactive:false}).addTo(ivaoLayer);
+    const ll=c.poly?L.polygon(c.poly).getBounds().getCenter():(isFinite(c.lat)?[c.lat,c.lon]:null);
+    if(ll)L.marker(ll,{pane:'ivao',interactive:false,icon:L.divIcon({className:'ivao-lbl',html:`<div>${esc(c.cs)}${c.freq?' '+esc(c.freq):''}</div>`,iconAnchor:[30,8]})}).addTo(ivaoLayer); });
+  Object.entries(IVAO.apts).forEach(([icao,list])=>{
+    const code=Object.keys(AIRPORTS).find(k=>AIRPORTS[k][5]===icao), a=code&&AIRPORTS[code];
+    const ll=a?[a[0],a[1]]:(isFinite(list[0].lat)?[list[0].lat,list[0].lon]:null); if(!ll)return;
+    L.circleMarker(ll,{pane:'ivao',radius:13,color:'#f59e0b',weight:2.5,fill:false,interactive:false}).addTo(ivaoLayer);
+    L.marker(ll,{pane:'ivao',interactive:false,icon:L.divIcon({className:'ivao-lbl',html:`<div>${icao} ${uniqPos(list.map(i=>i.pos)).join(' ')}</div>`,iconAnchor:[-14,-8]})}).addTo(ivaoLayer);
+  });
+}
+
 let mapLines=[], selApt=null, selTab='dep', mapR=[];
 function initMap(){
   map=L.map('leaflet-map',{zoomControl:true,worldCopyJump:true}).setView([30,10],2);
@@ -550,6 +643,10 @@ function initMap(){
   esri.on('tileerror',()=>{if(++fails===3){map.removeLayer(esri);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap'}).addTo(map);}});
   map.on('click',()=>{if(selApt)closeAptSheet();});
+  map.createPane('ivao').style.zIndex=350;   // sous les lignes de vol
+  const Btn=L.Control.extend({onAdd(){const b=L.DomUtil.create('button','ivao-map-btn');b.id='ivao-map-btn';b.textContent='🎧 IVAO';
+    L.DomEvent.disableClickPropagation(b);b.onclick=()=>{ivaoShow=!ivaoShow;b.classList.toggle('on',ivaoShow);drawIvao();};return b;}});
+  new Btn({position:'topleft'}).addTo(map);
 }
 // Trace des vols ; focus = aéroport sélectionné (on ne garde alors que ses vols et les aéroports reliés)
 function drawFlights(list,focus){
@@ -561,7 +658,7 @@ function drawFlights(list,focus){
     if(!dc||!ac)return;
     const color=CO_COLOR[x.co]||'#1a56db';
     touch(x.dep,'dep',color); touch(x.arr,'arr',color);
-    const popup=`<div class="map-popup"><strong>${x.dep} → ${x.arr}</strong><div class="pop-info">${esc(airlineName(x.al))}<br>${esc(x.cs)}${x.ac?' · '+esc(x.ac):''}<br>⏱ ${fd(x.dur)} · ${ft(x.depMin)}→${ft(x.arrMin)}</div><a href="${simbriefUrl(x)}" target="_blank" class="pop-sb">Ouvrir dans Simbrief ↗</a></div>`;
+    const popup=`<div class="map-popup"><strong>${x.dep} → ${x.arr}</strong><div class="pop-info">${esc(airlineName(x.al))}<br>${esc(x.cs)}${x.ac?' · '+esc(x.ac):''}<br>⏱ ${fd(x.dur)} · ${ft(x.depMin)}→${ft(x.arrMin)}</div>${ivaoWarn(x,true)}<a href="${simbriefUrl(x)}" target="_blank" class="pop-sb">Ouvrir dans Simbrief ↗</a></div>`;
     const pts=greatCircle(dc[0],dc[1],ac[0],ac[1]);
     const line=L.polyline(pts,{color,weight:focus?2.5:2,opacity:focus?0.9:0.75}).bindPopup(popup).addTo(map);
     mapLayers.push(line); mapLines.push({line,x,color});
@@ -585,6 +682,7 @@ function renderMap(r){
   note.style.display=r.length>MAP_MAX?'':'none';
   note.textContent=`${MAP_MAX} premiers vols tracés sur ${r.length} · touche un aéroport pour voir tous ses vols`;
   const bounds=drawFlights(r.slice(0,MAP_MAX),null);
+  drawIvao();
   if(bounds.length)map.fitBounds(bounds,{padding:[40,40]});
   setTimeout(()=>map.invalidateSize(),100);
 }
@@ -613,7 +711,7 @@ function openAptSheet(c){
     <div class="as-list">${list.length?list.map(x=>`
       <div class="as-row">
         <div class="as-main"><b>${x.dep} → ${x.arr}</b><span>${esc(airlineName(x.al))} · ${esc(x.cs)}${x.fn&&x.fn.slice(2)!==x.cs.slice(3)?' ('+esc(x.fn)+')':''}${x.ac?' · '+esc(x.ac):''}</span>
-          <span>${ft(x.depMin)} → ${ft(x.arrMin)} · ${fd(x.dur)}${x.src==='G'?'':' (estimé)'}</span></div>
+          <span>${ft(x.depMin)} → ${ft(x.arrMin)} · ${fd(x.dur)}${x.src==='G'?'':' (estimé)'}</span>${ivaoWarn(x,true)}</div>
         <a href="${simbriefUrl(x)}" target="_blank" class="as-sb">Simbrief ↗</a>
       </div>`).join(''):'<div class="as-empty">Aucun vol dans ce sens pour tes critères.</div>'}</div>`;
   document.getElementById('apt-sheet').style.display='flex';

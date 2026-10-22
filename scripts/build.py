@@ -273,7 +273,7 @@ def main():
     (ROOT / 'routes.json').write_text(json.dumps({'cols': COLS, 'rows': rows, 'airlines': al_out},
                                                  ensure_ascii=False, separators=(',', ':')))
     (ROOT / 'airports.json').write_text(json.dumps(
-        {c: [round(a['lat'], 3), round(a['lon'], 3), a['name'], a['city'], a['country']] for c, a in used.items()},
+        {c: [round(a['lat'], 3), round(a['lon'], 3), a['name'], a['city'], a['country'], a['icao']] for c, a in used.items()},
         ensure_ascii=False, separators=(',', ':')))
     meta = {'updated': dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%d %H:%M UTC'),
             'days': [p.stem for p in days], 'offset_min': offset, 'calib_routes': len(diffs),
