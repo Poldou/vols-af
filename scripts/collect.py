@@ -132,7 +132,7 @@ def airport_list():
 def summarize(flights, acdb):
     """Regroupe les vols par jour UTC de départ, puis par compagnie|départ|arrivée."""
     seen = set()
-    days = defaultdict(lambda: defaultdict(lambda: {'n': 0, 'dur': [], 'dep': [], 'ac': Counter(), 'cs': Counter()}))
+    days = defaultdict(lambda: defaultdict(lambda: {'n': 0, 'dur': [], 'dep': [], 'ac': Counter(), 'cs': Counter(), 'cd': []}))
     for f in flights:
         cs = (f.get('callsign') or '').strip().upper()
         m = CALLSIGN.match(cs)
@@ -156,10 +156,11 @@ def summarize(flights, acdb):
         r['dur'].append(dur)
         r['dep'].append(t.hour * 60 + t.minute)
         r['cs'][cs] += 1
+        r['cd'].append([cs, t.hour * 60 + t.minute])   # indicatif réel associé à son heure de départ
         ty = acdb.get((f.get('icao24') or '').lower())
         if ty:
             r['ac'][ty] += 1
-    return {d: {k: {'n': v['n'], 'dur': v['dur'], 'dep': v['dep'], 'ac': dict(v['ac']), 'cs': dict(v['cs'])}
+    return {d: {k: {'n': v['n'], 'dur': v['dur'], 'dep': v['dep'], 'ac': dict(v['ac']), 'cs': dict(v['cs']), 'cd': v['cd']}
                 for k, v in routes.items()} for d, routes in days.items()}
 
 

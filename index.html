@@ -466,9 +466,11 @@ function renderResults(){
 }
 
 function simbriefUrl(x){
-  const num=(x.cs||'').slice(3);
+  // numéro de vol commercial (AF1234 -> 1234) + indicatif ATC réel (TVF86FD) s'il diffère
+  const fnum=(x.fn||'').replace(/^[A-Z0-9]{2}/,''), csnum=(x.cs||'').slice(3);
+  const num=/^\d/.test(fnum)?fnum:(/^\d+$/.test(csnum)?csnum:'');
   const p=new URLSearchParams({orig:x.dep,dest:x.arr});
-  if(/^[A-Z]{3}$/.test(x.al)&&num){p.set('airline',x.al);p.set('fltnum',num);}
+  if(/^[A-Z]{3}$/.test(x.al)){ if(num){p.set('airline',x.al);p.set('fltnum',num);} if(x.cs&&x.cs!==x.al+num)p.set('callsign',x.cs); }
   return 'https://www.simbrief.com/system/dispatch.php?'+p.toString();
 }
 

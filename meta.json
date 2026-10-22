@@ -1,5 +1,5 @@
 {
- "updated": "2026-10-21 19:19 UTC",
+ "updated": "2026-10-22 11:19 UTC",
  "days": [
   "2026-10-15",
   "2026-10-16",
@@ -18,6 +18,7 @@
   "opensky": 116,
   "modele": 475
  },
+ "indicatifs_reels_officiels": 203,
  "routes": 21795,
  "airlines": 683,
  "airports": 1851

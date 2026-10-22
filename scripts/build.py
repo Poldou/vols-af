@@ -97,6 +97,24 @@ def mode_time(minutes):
     return f'{m // 60:02d}:{m % 60:02d}'
 
 
+def hhmm_to_min(h):
+    return int(h[:2]) * 60 + int(h[3:5]) if h and len(h) >= 5 else None
+
+
+def real_callsign(g, hdep, fallback):
+    """Indicatif ATC réellement utilisé (ex. TVF86FD) pour le vol qui part vers cette heure-là."""
+    if not g:
+        return fallback
+    t = hhmm_to_min(hdep)
+    if t is not None and g['pairs']:
+        near = Counter(cs for cs, m in g['pairs'] if min(abs(m - t), 1440 - abs(m - t)) <= 45)
+        if near:
+            return near.most_common(1)[0][0]
+    if len(g['cs']) == 1:
+        return next(iter(g['cs']))
+    return fallback
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--airports', default='airports.csv')
@@ -121,12 +139,16 @@ def main():
     days = sorted((ROOT / 'data' / 'daily').glob('*.json'))[-args.window:]
     for p in days:
         for key, r in json.loads(p.read_text())['routes'].items():
-            g = agg.setdefault(key, {'n': 0, 'dur': [], 'dep': [], 'ac': Counter(), 'cs': Counter()})
+            g = agg.setdefault(key, {'n': 0, 'dur': [], 'dep': [], 'ac': Counter(), 'cs': Counter(), 'pairs': []})
             g['n'] += r['n']
             g['dur'] += r['dur']
             g['dep'] += r['dep']
             g['ac'].update(r['ac'])
             g['cs'].update(r['cs'])
+            if 'cd' in r:
+                g['pairs'] += [tuple(x) for x in r['cd']]
+            elif r['n'] == 1 and len(r['cs']) == 1:   # anciennes journées : un seul vol, donc indicatif et heure vont ensemble
+                g['pairs'].append((next(iter(r['cs'])), r['dep'][0]))
 
     # 2. Horaires officiels importés — prioritaires sur OpenSky
     #    schedules.json : vols datés (horaires et durées exacts)
@@ -188,12 +210,14 @@ def main():
         dist = km(da, aa)
         return 'SH' if dist < 1000 else 'MH' if dist < 4500 else 'LH'
 
-    rows = []
+    rows, n_real = [], 0
     for r in sched:
         da, aa = by_iata.get(r['dep']), by_iata.get(r['arr'])
         code_of(da, r['dep'])
         code_of(aa, r['arr'])
-        rows.append([r['al'], r['cs'], r['fn'], r['dep'], r['arr'], r['hdep'], r['dur'], r['ac'],
+        cs = real_callsign(observed.get((r['al'], r['dep'], r['arr'])), r['hdep'], r['cs'])
+        n_real += cs != r['cs']
+        rows.append([r['al'], cs, r['fn'], r['dep'], r['arr'], r['hdep'], r['dur'], r['ac'],
                      r['co'] or courrier(da, aa), route_region(da, aa), r['n'], 'G'])
 
     n_est = {'opensky': 0, 'modele': 0}
@@ -214,7 +238,9 @@ def main():
             else:
                 dur, src = round(inter + slope * km(da, aa)), 'E'
                 n_est['modele'] += 1
-        rows.append([r['al'], r['cs'], r['fn'], r['dep'], r['arr'], hdep, dur, ac,
+        cs = real_callsign(observed.get((r['al'], r['dep'], r['arr'])), hdep, r['cs'])
+        n_real += cs != r['cs']
+        rows.append([r['al'], cs, r['fn'], r['dep'], r['arr'], hdep, dur, ac,
                      courrier(da, aa), route_region(da, aa), r['n'], src])
 
     for key, g in agg.items():
@@ -227,10 +253,14 @@ def main():
         dist = km(da, aa)
         if dist < 80:
             continue
-        cs = g['cs'].most_common(1)[0][0]
+        hdep = mode_time(g['dep'])
+        cs = real_callsign(g, hdep, g['cs'].most_common(1)[0][0])
         iata = airlines.get(al, ('', '', False))[0]
-        rows.append([al, cs, (iata + cs[3:]) if iata else '', code_of(da, d), code_of(aa, a),
-                     mode_time(g['dep']), round(robust_mean(g['dur'])) + offset,
+        num = cs[3:]
+        # un indicatif alphanumérique (TVF86FD) n'est pas le numéro de vol commercial
+        fn = (iata + num) if iata and num.isdigit() else ''
+        rows.append([al, cs, fn, code_of(da, d), code_of(aa, a),
+                     hdep, round(robust_mean(g['dur'])) + offset,
                      g['ac'].most_common(1)[0][0] if g['ac'] else '',
                      'SH' if dist < 1000 else 'MH' if dist < 4500 else 'LH',
                      route_region(da, aa), g['n'], 'A'])
@@ -247,7 +277,7 @@ def main():
         ensure_ascii=False, separators=(',', ':')))
     meta = {'updated': dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%d %H:%M UTC'),
             'days': [p.stem for p in days], 'offset_min': offset, 'calib_routes': len(diffs),
-            'model': {'min_fixe': round(inter), 'min_par_1000km': round(slope * 1000)}, 'estimees': n_est,
+            'model': {'min_fixe': round(inter), 'min_par_1000km': round(slope * 1000)}, 'estimees': n_est, 'indicatifs_reels_officiels': n_real,
             'routes': len(rows), 'airlines': len(al_out), 'airports': len(used)}
     (ROOT / 'meta.json').write_text(json.dumps(meta, ensure_ascii=False, indent=1))
     print(json.dumps(meta, ensure_ascii=False))
