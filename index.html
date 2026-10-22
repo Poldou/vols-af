@@ -144,6 +144,20 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .tab-icon{font-size:22px;color:var(--sub);}
 .tab-label{font-size:10px;font-weight:500;color:var(--sub);}
 .tab.on .tab-icon,.tab.on .tab-label{color:var(--blue);}
+
+/* Grand écran (PC, iPad) : pleine largeur, liste en grille, panneau aéroport à droite de la carte */
+@media (min-width:900px){
+  .app{max-width:none;border:none;}
+  #s-search .scroll-body>*{max-width:720px;margin-left:auto;margin-right:auto;}
+  .header,.pills-row,.count-banner{padding-left:max(16px,calc((100% - 1400px)/2));padding-right:max(16px,calc((100% - 1400px)/2));}
+  .view-toggle{max-width:480px;width:calc(100% - 32px);margin:8px auto 0;}
+  #results-body .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px;max-width:1400px;margin:0 auto;}
+  #results-body .cards .fcard{margin-bottom:0;}
+  #results-body .more-btn{display:block;max-width:400px;margin:14px auto;}
+  #apt-sheet{left:auto;top:12px;right:12px;bottom:12px;width:400px;max-height:none;border-radius:16px;box-shadow:0 6px 30px rgba(0,0,0,0.4);}
+  .tab-bar{justify-content:center;}
+  .tab-bar .tab{flex:0 0 200px;}
+}
 </style>
 </head>
 <body>
@@ -470,7 +484,7 @@ function simbriefUrl(x){
   const fnum=(x.fn||'').replace(/^[A-Z0-9]{2}/,''), csnum=(x.cs||'').slice(3);
   const num=/^\d/.test(fnum)?fnum:(/^\d+$/.test(csnum)?csnum:'');
   const p=new URLSearchParams({orig:x.dep,dest:x.arr});
-  if(/^[A-Z]{3}$/.test(x.al)){ if(num){p.set('airline',x.al);p.set('fltnum',num);} if(x.cs&&x.cs!==x.al+num)p.set('callsign',x.cs); }
+  if(/^[A-Z]{3}$/.test(x.al)){ p.set('airline',x.al); if(num)p.set('fltnum',num); if(x.cs&&x.cs!==x.al+num)p.set('callsign',x.cs); }
   return 'https://www.simbrief.com/system/dispatch.php?'+p.toString();
 }
 
@@ -502,7 +516,7 @@ function card(x){
 function renderList(r){
   const body=document.getElementById('results-body');
   if(!r.length){body.innerHTML='<div class="no-res">✈️<br><br>Aucun vol pour ce créneau.<br>Élargis la plage d\'arrivée ou change de compagnie.</div>';return;}
-  body.innerHTML=r.slice(0,shown).map(card).join('')+
+  body.innerHTML='<div class="cards">'+r.slice(0,shown).map(card).join('')+'</div>'+
     (r.length>shown?`<button class="more-btn" onclick="shown+=${PAGE};renderList(getFiltered())">Afficher plus (${r.length-shown} restants)</button>`:'');
 }
 
@@ -574,6 +588,7 @@ function renderMap(r){
   if(bounds.length)map.fitBounds(bounds,{padding:[40,40]});
   setTimeout(()=>map.invalidateSize(),100);
 }
+const wide=()=>matchMedia('(min-width:900px)').matches;
 function selectApt(c){
   const deps=mapR.filter(x=>x.dep===c), arrs=mapR.filter(x=>x.arr===c);
   selTab=deps.length?'dep':'arr';
@@ -581,7 +596,7 @@ function selectApt(c){
   document.getElementById('map-note').style.display='none';
   const bounds=drawFlights([...deps,...arrs],c);
   // laisse de la place au panneau en bas
-  if(bounds.length)map.fitBounds(bounds,{paddingTopLeft:[30,30],paddingBottomRight:[30,Math.round(document.getElementById('map-view').clientHeight*0.55)],maxZoom:7});
+  if(bounds.length)map.fitBounds(bounds,{paddingTopLeft:[30,30],paddingBottomRight:wide()?[440,30]:[30,Math.round(document.getElementById('map-view').clientHeight*0.55)],maxZoom:7});
   openAptSheet(c);
 }
 function openAptSheet(c){
