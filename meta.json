@@ -1,25 +1,27 @@
 {
- "updated": "2026-10-22 15:46 UTC",
+ "updated": "2026-11-01 13:34 UTC",
  "days": [
   "2026-10-15",
   "2026-10-16",
   "2026-10-17",
   "2026-10-18",
   "2026-10-19",
-  "2026-10-20"
+  "2026-10-20",
+  "2026-10-30",
+  "2026-10-31"
  ],
  "offset_min": 28,
- "calib_routes": 279,
+ "calib_routes": 378,
  "model": {
   "min_fixe": 44,
   "min_par_1000km": 72
  },
  "estimees": {
-  "opensky": 116,
-  "modele": 475
+  "opensky": 143,
+  "modele": 448
  },
- "indicatifs_reels_officiels": 203,
- "routes": 21795,
- "airlines": 683,
- "airports": 1851
+ "indicatifs_reels_officiels": 313,
+ "routes": 25407,
+ "airlines": 737,
+ "airports": 1976
 }
