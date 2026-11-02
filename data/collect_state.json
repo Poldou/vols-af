@@ -251,13 +251,13 @@
   "KBTV",
   "KLEX"
  ],
- "cursor": 0,
+ "cursor": 7,
  "built": "2026-10-20",
  "last_run": {
-  "utc": "2026-11-01 22:09",
-  "airports": 125,
-  "credits_spent": 3750,
-  "credits_left": "250",
+  "utc": "2026-11-02 16:04",
+  "airports": 7,
+  "credits_spent": 210,
+  "credits_left": "40",
   "message": "ok",
   "retry_after_s": null
  },
