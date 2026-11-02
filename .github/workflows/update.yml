@@ -35,7 +35,7 @@ jobs:
         env:
           OPENSKY_CLIENT_ID: ${{ secrets.OPENSKY_CLIENT_ID }}
           OPENSKY_CLIENT_SECRET: ${{ secrets.OPENSKY_CLIENT_SECRET }}
-        run: python3 scripts/collect.py ${{ github.event_name == 'schedule' && '' || '--force' }}   # relance manuelle : collecte même si le tour du mois est fait
+        run: python3 scripts/collect.py ${{ github.event_name != 'schedule' && '--force' || '' }}   # relance manuelle : collecte même si le tour du mois est fait
 
       - name: Construction de routes.json
         run: python3 scripts/build.py
