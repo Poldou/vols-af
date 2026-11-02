@@ -10,6 +10,7 @@ Usage : python3 scripts/ivao_sectors.py
 import json
 import os
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -49,18 +50,40 @@ def get(path, **params):
     url = f'{API}{path}' + ('?' + urllib.parse.urlencode(params) if params else '')
     styles = [auth_ok] if auth_ok is not None else range(len(AUTH_STYLES))
     last = None
-    for i in styles:
-        u, h = AUTH_STYLES[i](url)
-        req = urllib.request.Request(u, headers={**h, 'Accept': 'application/json', 'User-Agent': 'planificateur-vol'})
-        try:
-            with urllib.request.urlopen(req, timeout=120) as r:
+    for attempt in range(4):
+        retry = False
+        for i in styles:
+            u, h = AUTH_STYLES[i](url)
+            req = urllib.request.Request(u, headers={**h, 'Accept': 'application/json', 'User-Agent': 'planificateur-vol'})
+            try:
+                with urllib.request.urlopen(req, timeout=120) as r:
+                    body = r.read()
+                try:
+                    j = json.loads(body)
+                except ValueError:
+                    # l'API répond parfois 200 avec une page vide ou HTML (maintenance, passerelle saturée)
+                    last = f'réponse illisible ({len(body)} octets : {body[:80]!r})'
+                    log(f'  {path} : {last}')
+                    retry = True
+                    break
                 auth_ok = i
-                return json.load(r)
-        except urllib.error.HTTPError as e:
-            last = f'HTTP {e.code}'
-            log(f'  {path} (auth {i}) : {last}')
-            if e.code not in (401, 403):
+                return j
+            except urllib.error.HTTPError as e:
+                last = f'HTTP {e.code}'
+                log(f'  {path} (auth {i}) : {last}')
+                if e.code >= 500 or e.code == 429:
+                    retry = True
+                    break
+                if e.code not in (401, 403):
+                    break
+            except (urllib.error.URLError, TimeoutError) as e:
+                last = f'réseau : {e}'
+                log(f'  {path} : {last}')
+                retry = True
                 break
+        if not retry:
+            break
+        time.sleep(30 * (attempt + 1))
     raise RuntimeError(f'{path} : {last}')
 
 
@@ -169,7 +192,15 @@ def main():
         sys.exit('IVAO_API_KEY manquant')
     by_cs, n_sub, n_pos = {}, 0, 0
 
-    for o in fetch_all('/v2/subcenters/all', mapType='regionMapPolygon'):
+    try:
+        subcenters = fetch_all('/v2/subcenters/all', mapType='regionMapPolygon')
+    except RuntimeError as e:
+        # les limites changent rarement : si l'API est indisponible, on garde celles de la semaine précédente
+        if OUT.exists():
+            print(f'::warning::API IVAO indisponible ({e}), limites précédentes conservées', flush=True)
+            return
+        raise
+    for o in subcenters:
         polys = poly_of(o)
         cs = (o.get('composePosition') or o.get('callsign') or '').upper()
         polys = compact(polys, 0.03)
